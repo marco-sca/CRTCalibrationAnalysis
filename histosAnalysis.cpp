@@ -36,6 +36,7 @@ int adc_last_pe = 900;
 int range_pedestal_histo = 500;
 int max_peaks = 15;
 int peaks_of_interest = 5;
+int max_nr_of_fits = 10;
 double sigmaXPeakSearch = 1;
 double peaks_treshold = 0.10;
 std::string dataset_specific_name = "afterCut";
@@ -148,6 +149,7 @@ void separateHistograms(const char* fIn, TFile *fInSig, TFile *fInPed) {
  * rebin: Number of bins to merge together in the new histogram
  * smooth: Number of times the smoothing procedure is repeated
  *
+ * WORKFLOW
  * The last bin of the histogram is set, using a "for" loop, to zero to solve the overflow problem.
  * Then the first bin is also set to 0, solving the underflow problem. 
  * Overflow/underflow: the first and last bin have very high values. 
@@ -169,13 +171,31 @@ void rebinAndSmooth(TH1I* histogram, int rebin, int smooth) {
 }
 
 //Returns the mean and sigma value for the peaks of the passed histogram. The info are used for the fit
+/**
+ * This function is used to extract the sigma and mean values for the peaks of a given histogram, using recursive gaussian fits of the peaks
+ *
+ * INPUT PARAMETERS
+ * histogram: histogram from which we will extract the peaks' mean and sigma values
+ * xpeaks_sorted: vector containing the peaks' positions on the x-axis (in ADC counts)
+ * requested_red_chi2: requested reduced chi squared value for the fit
+ * histo_type: can assume 2 values, "ped" or "sig", depending on the histogram passed as argument
+ *
+ * WORKFLOW
+ * 
+ *
+ * RETURNS
+ * The vector "means", containing the values of mean and sigma for the peaks found in the histogram
+ *  
+ * */
 std::vector<std::pair<double, double>> getPeaksMean(TH1I* histogram ,  std::vector<double> xpeaks_sorted, int requested_red_chi2, std::string histo_type) {
 	std::vector<std::pair<double, double>> means;
-	int low_binx, up_binx, den_fit_range;
-	double left_distance, right_distance, half_mean_distance;
+	int low_binx, up_binx, den_fit_range, nr_of_fits;
+	double left_distance, right_distance, half_mean_distance, low_x, up_x;
+	double mean, sigma, red_chi2;
+	bool fitted;
 	
 	for(int npeak = 0; npeak < xpeaks_sorted.size(); npeak++){
-    		TAxis* xaxis = histo->GetXaxis();
+    		TAxis* xaxis = histogram->GetXaxis();
     		if (npeak == 0) {
       			left_distance = xpeaks_sorted[npeak];
     		} else {
@@ -190,49 +210,48 @@ std::vector<std::pair<double, double>> getPeaksMean(TH1I* histogram ,  std::vect
 
 		if(histo_type == "ped") den_fit_range = 1;
 		if(histo_type == "sig") den_fit_range = 2;
-
-		double half_mean_distance;
 		if(left_distance < right_distance){
-      half_mean_distance = left_distance / den_fit_range;
-    } else {
-      half_mean_distance = right_distance / den_fit_range;
-    }
+      			half_mean_distance = left_distance / den_fit_range;
+    		} else {
+      			half_mean_distance = right_distance / den_fit_range;
+    		}
 
 		low_binx = xaxis->FindBin(xpeaks_sorted[npeak] - half_mean_distance);
-    up_binx  = xaxis->FindBin(xpeaks_sorted[npeak] + half_mean_distance);
+    		up_binx  = xaxis->FindBin(xpeaks_sorted[npeak] + half_mean_distance);
 
-		bool fitted = false;
-    double red_chi2;
-    int tries = 0;
-    while (!fitted) {
-      double low_x = xaxis->GetBinCenter(low_binx);
-      double up_x  = xaxis->GetBinCenter(up_binx);
-      TF1* gaussian_fit = new TF1("gfit", "gaus", low_x, up_x);
-      gaussian_fit->SetLineColor(2);
-      histo->Fit(gaussian_fit, "QR+");
+		fitted = false;
+    		nr_of_fits = 0;
+    		while (!fitted) {
+      			low_x = xaxis->GetBinCenter(low_binx);
+      			up_x  = xaxis->GetBinCenter(up_binx);
+      			TF1* gaussian_fit = new TF1("Gaussian Fit", "gaus", low_x, up_x);
+      			gaussian_fit->SetLineColor(2);
+      			histogram->Fit(gaussian_fit, "QR+");
 
-      double mean = gaussian_fit->GetParameter(1);
-      double sigma = gaussian_fit->GetParameter(2);
-      red_chi2 = gaussian_fit->GetChisquare() / gaussian_fit->GetNDF();
-	  	if (red_chi2 < requested_red_chi2 &&
-          mean > xpeaks_sorted[npeak] - half_mean_distance &&
-          mean < xpeaks_sorted[npeak] + half_mean_distance && 
-          mean + sigma < adc_last_pe) {
-        means.push_back(std::make_pair(mean, sigma));
-        fitted = true;
-      }
+      			mean = gaussian_fit->GetParameter(1);
+      			sigma = gaussian_fit->GetParameter(2);
+      			red_chi2 = gaussian_fit->GetChisquare() / gaussian_fit->GetNDF();
+	  		
+			if (red_chi2 < requested_red_chi2 &&
+          			mean > xpeaks_sorted[npeak] - half_mean_distance &&
+          			mean < xpeaks_sorted[npeak] + half_mean_distance && 
+          			/*mean + sigma < adc_last_pe*/) {
+        				means.push_back(std::make_pair(mean, sigma));
+        				fitted = true;
+      			}
 
 			low_binx++;
 			up_binx--;
-
-			if (up_binx - low_binx < 2) fitted = true;
-
-			if (tries == 10) fitted = true;
-			tries++;
-
+			if (up_binx - low_binx < 2 || nr_of_fits >= max_nr_of_fits){ 
+				fitted = true;
+				means.push_back(std::make_pair(mean, sigma));
+			}
+			
+			nr_of_fits++;
 			delete gaussian_fit;
 		} 
 	}
+
 	return means;
 }
 
