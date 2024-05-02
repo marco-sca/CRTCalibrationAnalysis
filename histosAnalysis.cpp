@@ -85,67 +85,68 @@ struct lFit {
  *
  * */
 void separateHistograms(const char* fIn, TFile *fInSig, TFile *fInPed) {
-	TFile *inputFile = TFile::Open(fIn, "READ");
+		TFile *inputFile = TFile::Open(fIn, "READ");
 
-	TDirectory *mainDir = (TDirectory*)inputFile->Get("CRTCalibrationAnalysis");
-	TList *list = mainDir->GetListOfKeys();
-	bool hasSubDirs = false;
+		TDirectory *mainDir = (TDirectory*)inputFile->Get("CRTCalibrationAnalysis");
+		TList *list = mainDir->GetListOfKeys();
+		bool hasSubDirs = false;
 	
-	// Here I search for subdirectories inside CRTCalibrationAnalysis
-    	TIter iter(list);
-    	TKey *key;
-    	while ((key = (TKey*)iter())) {
-        	if (strcmp(key->GetClassName(), "TDirectoryFile") == 0) {
-            		hasSubDirs = true;
-            		break;
-        	}
-    	}
+		// Here I search for subdirectories inside CRTCalibrationAnalysis
+    TIter iter(list);
+    TKey *key;
+    while ((key = (TKey*)iter())) {
+    		if (strcmp(key->GetClassName(), "TDirectoryFile") == 0) {
+        		hasSubDirs = true;
+            break;
+        }
+    }
 
-	// I loop over and search all the histograms for the 32 channels in the 231 CRT modules/Front-End-Boards (FEB) 
-    	for (int feb = 1; feb <= 231; ++feb) {
-        	for (int ch = 0; ch <= 31; ++ch) {
-            		TString signalHistName = Form("hadc_%d_%d_signal", feb, ch);
-            		TString pedestalHistName = Form("hadc_%d_%d_pedestal", feb, ch);
-            		TH1 *signalHist = nullptr;
-            		TH1 *pedestalHist = nullptr;
+		// I loop over and search all the histograms for the 32 channels in the 231 CRT modules/Front-End-Boards (FEB) 
+    for (int feb = 1; feb <= 231; ++feb) {
+    		for (int ch = 0; ch <= 31; ++ch) {
+        		TString signalHistName = Form("hadc_%d_%d_signal", feb, ch);
+            TString pedestalHistName = Form("hadc_%d_%d_pedestal", feb, ch);
+            TH1 *signalHist = nullptr;
+            TH1 *pedestalHist = nullptr;
 
-			// If a subdirectory is found, I point at it and search for the histogram using its name
-            		if (hasSubDirs) {
-               			TIter dirIter(list);		
-				while ((key = (TKey*)dirIter())) {
-					if (strcmp(key->GetClassName(), "TDirectoryFile") != 0) {
-                        			continue;
-                    			}
-                    			TDirectory *subDir = (TDirectory*)mainDir->Get(key->GetName());
-                    			signalHist = (TH1*)subDir->Get(signalHistName);
-                    			pedestalHist = (TH1*)subDir->Get(pedestalHistName);
-                    			if (signalHist || pedestalHist) {
-                        			break;
-                    			}
-                		}
+						// If a subdirectory is found, I point at it and search for the histogram using its name
+            if (hasSubDirs) {
+            		TIter dirIter(list);		
+								while ((key = (TKey*)dirIter())) {
+								// Double-check that I am pointing to a subdirectory
+										if (strcmp(key->GetClassName(), "TDirectoryFile") != 0) {
+           	        		continue;
+                  	}
+                  	TDirectory *subDir = (TDirectory*)mainDir->Get(key->GetName());
+                  	signalHist = (TH1*)subDir->Get(signalHistName);
+                  	pedestalHist = (TH1*)subDir->Get(pedestalHistName);
+                  			if (signalHist || pedestalHist) {
+														std::cout << "Failed search of: " << signalHistName << " or " << pedestalHistName << std::endl;
+                    				break;
+                    		}                
+						// Otherwise I search directly for the histogram using its name
+            } else {
+            		signalHist = (TH1*)mainDir->Get(signalHistName);
+            		pedestalHist = (TH1*)mainDir->Get(pedestalHistName);
+            }
 
-			// Otherwise I search directly for the histogram using its name
-            		} else {
-                		signalHist = (TH1*)mainDir->Get(signalHistName);
-                		pedestalHist = (TH1*)mainDir->Get(pedestalHistName);
-            		}
+						// I then move the histogram in the right file depending on the type: signal or pedestal
+            if (signalHist) {
+								std::cout << "Moving " << signalHistName << " to " << fInSig << std::endl;
+                fInSig->cd();
+                signalHist->Write();
+            }
 
-			// I then move the histogram in the right file depending on the type: signal or pedestal
-            		if (signalHist) {
-				std::cout << "Moving " << signalHistName << " to " << fInSig << std::endl;
-                		fInSig->cd();
-                		signalHist->Write();
-            		}
-
-            		if (pedestalHist) {
-				std::cout << "Moving " << pedestalHistName << " to " << fInPed << std::endl;
-                		fInPed->cd();
-                		pedestalHist->Write();
-            		}
-        	}
-    	}
+            if (pedestalHist) {
+								std::cout << "Moving " << pedestalHistName << " to " << fInPed << std::endl;
+          		  fInPed->cd();
+                pedestalHist->Write();
+            }
+        }
+    }
 	
-	inputFile->Close();
+		inputFile->Close();
+
 }
 
 /**
@@ -826,14 +827,15 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 
 //The arguments are: the file name and path
 void histosAnalysis(const char* fIn){
+		//Divide the name of the file and path, passed as argument
+		TString inputFilePath(fIn);
+		TString inputDir = gSystem->DirName(inputFilePath);
+ 		TString inputFileName = gSystem->BaseName(inputFilePath);
 
-	TString inputFilePath(fIn);
-	TString inputDir = gSystem->DirName(inputFilePath);
- 	TString inputFileName = gSystem->BaseName(inputFilePath);
+		//Divide the histograms, generated in the decoding stage, in two files. One for the signal and one for the pedestal.
   	TString signalFileName = inputDir + "/signal_histograms_" + inputFileName;
   	TString pedestalFileName = inputDir + "/pedestal_histograms_" + inputFileName;
-  	
-	TFile *signalFile = new TFile(signalFileName, "RECREATE");
+		TFile *signalFile = new TFile(signalFileName, "RECREATE");
   	TFile *pedestalFile = new TFile(pedestalFileName, "RECREATE");
   	separateHistograms(fIn, signalFile, pedestalFile);
 
