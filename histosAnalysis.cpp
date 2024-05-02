@@ -34,6 +34,8 @@ const int signal_rebin = 10;
 const int signal_smooth = 2;
 const int adc_last_pe = 1000;
 const int range_pedestal_histo = 500;
+conts int chi2_fit_increase = 10;
+const int chi2_red_limit = 500;
 const int max_peaks = 15;
 const int peaks_of_interest = 5;
 const int max_nr_of_fits = 10;
@@ -85,68 +87,67 @@ struct lFit {
  *
  * */
 void separateHistograms(const char* fIn, TFile *fInSig, TFile *fInPed) {
-		TFile *inputFile = TFile::Open(fIn, "READ");
+	TFile *inputFile = TFile::Open(fIn, "READ");
 
-		TDirectory *mainDir = (TDirectory*)inputFile->Get("CRTCalibrationAnalysis");
-		TList *list = mainDir->GetListOfKeys();
-		bool hasSubDirs = false;
+	TDirectory *mainDir = (TDirectory*)inputFile->Get("CRTCalibrationAnalysis");
+	TList *list = mainDir->GetListOfKeys();
+	bool hasSubDirs = false;
 	
-		// Here I search for subdirectories inside CRTCalibrationAnalysis
-    TIter iter(list);
-    TKey *key;
-    while ((key = (TKey*)iter())) {
+	// Here I search for subdirectories inside CRTCalibrationAnalysis
+    	TIter iter(list);
+    	TKey *key;
+    	while ((key = (TKey*)iter())) {
     		if (strcmp(key->GetClassName(), "TDirectoryFile") == 0) {
         		hasSubDirs = true;
-            break;
-        }
-    }
+            		break;
+        	}
+    	}
 
-		// I loop over and search all the histograms for the 32 channels in the 231 CRT modules/Front-End-Boards (FEB) 
-    for (int feb = 1; feb <= 231; ++feb) {
+	// I loop over and search all the histograms for the 32 channels in the 231 CRT modules/Front-End-Boards (FEB) 
+    	for (int feb = 1; feb <= 231; ++feb) {
     		for (int ch = 0; ch <= 31; ++ch) {
         		TString signalHistName = Form("hadc_%d_%d_signal", feb, ch);
-            TString pedestalHistName = Form("hadc_%d_%d_pedestal", feb, ch);
-            TH1 *signalHist = nullptr;
-            TH1 *pedestalHist = nullptr;
+            		TString pedestalHistName = Form("hadc_%d_%d_pedestal", feb, ch);
+            		TH1 *signalHist = nullptr;
+            		TH1 *pedestalHist = nullptr;
 
-						// If a subdirectory is found, I point at it and search for the histogram using its name
-            if (hasSubDirs) {
-            		TIter dirIter(list);		
-								while ((key = (TKey*)dirIter())) {
-								// Double-check that I am pointing to a subdirectory
-										if (strcmp(key->GetClassName(), "TDirectoryFile") != 0) {
-           	        		continue;
-                  	}
-                  	TDirectory *subDir = (TDirectory*)mainDir->Get(key->GetName());
-                  	signalHist = (TH1*)subDir->Get(signalHistName);
-                  	pedestalHist = (TH1*)subDir->Get(pedestalHistName);
+			// If a subdirectory is found, I point at it and search for the histogram using its name
+            		if (hasSubDirs) {
+            			TIter dirIter(list);		
+				while ((key = (TKey*)dirIter())) {
+					// Double-check that I am pointing to a subdirectory
+					if (strcmp(key->GetClassName(), "TDirectoryFile") != 0) {
+           	        			continue;
+                  			}
+                  			TDirectory *subDir = (TDirectory*)mainDir->Get(key->GetName());
+                  			signalHist = (TH1*)subDir->Get(signalHistName);
+                  			pedestalHist = (TH1*)subDir->Get(pedestalHistName);
                   			if (signalHist || pedestalHist) {
-														std::cout << "Failed search of: " << signalHistName << " or " << pedestalHistName << std::endl;
+						std::cout << "Failed search of: " << signalHistName << " or " << pedestalHistName << std::endl;
                     				break;
-                    		}                
-						// Otherwise I search directly for the histogram using its name
-            } else {
-            		signalHist = (TH1*)mainDir->Get(signalHistName);
-            		pedestalHist = (TH1*)mainDir->Get(pedestalHistName);
-            }
+                    			}
+				}	
+			// Otherwise I search directly for the histogram using its name
+            		} else {
+            			signalHist = (TH1*)mainDir->Get(signalHistName);
+            			pedestalHist = (TH1*)mainDir->Get(pedestalHistName);
+            		}
 
-						// I then move the histogram in the right file depending on the type: signal or pedestal
-            if (signalHist) {
-								std::cout << "Moving " << signalHistName << " to " << fInSig << std::endl;
-                fInSig->cd();
-                signalHist->Write();
-            }
+			// I then move the histogram in the right file depending on the type: signal or pedestal
+            		if(signalHist) {
+				std::cout << "Moving " << signalHistName << " to " << fInSig << std::endl;
+                		fInSig->cd();
+                		signalHist->Write();
+            		}
 
-            if (pedestalHist) {
-								std::cout << "Moving " << pedestalHistName << " to " << fInPed << std::endl;
-          		  fInPed->cd();
-                pedestalHist->Write();
-            }
-        }
-    }
-	
-		inputFile->Close();
-
+            		if (pedestalHist) {
+				std::cout << "Moving " << pedestalHistName << " to " << fInPed << std::endl;
+          		  	fInPed->cd();
+                		pedestalHist->Write();
+            		}
+        	}
+   	 }
+	inputFile->Close();
 }
 
 /**
@@ -599,85 +600,86 @@ void slopeChi2Canvas(std::vector<double> slopes, std::vector<double> chi2s) {
  * */
 std::vector<std::pair<double, double>> pedestal(TFile *fInPed, TString inputDir) {
   
-		std::vector<std::pair<double, double>> pedestals;
-		std::vector<std::pair<double, double>> means;
-		std::vector<double> xpeaks_sorted;
-		double pedestalPeak;
-		int febNr, chi2_red;
-		bool fitted;
-		std::string pedHisto_name, png_name;
-		TString tstring_pedHisto_name, tstring_febName;
+	std::vector<std::pair<double, double>> pedestals;
+	std::vector<std::pair<double, double>> means;
+	std::vector<double> xpeaks_sorted;
+	double pedestalPeak;
+	int febNr, chi2_red;
+	bool fitted;
+	std::string pedHisto_name, png_name;
+	TString tstring_pedHisto_name, tstring_febName;
 
-		TIter next(fInPed->GetListOfKeys());
+	TIter next(fInPed->GetListOfKeys());
   	TKey* key;
 
   	while ((key = (TKey*)next())) {
-				// Extract the histogram name, of the form "hadc_febNr_channerNr", and FEB number
-   			pedHisto_name = key->GetName();
-				tstring_pedHisto_name = pedHisto_name.c_str();
-				TObjArray* tokens = tstring_pedHisto_name.Tokenize("_");
-				TString tstring_febName = ((TObjString*)tokens->At(1))->GetString();
+		// Extract the histogram name, of the form "hadc_febNr_channerNr", and FEB number
+   		pedHisto_name = key->GetName();
+		tstring_pedHisto_name = pedHisto_name.c_str();
+		TObjArray* tokens = tstring_pedHisto_name.Tokenize("_");
+		TString tstring_febName = ((TObjString*)tokens->At(1))->GetString();
     		febNr = tstring_febName.Atoi();
-				//Select the FEBs to analyze
-				if(febNr > 107 && febNr != 113 && febNr < 139 && febNr != 126){
-    				std::cout << "Analysing the pedestal: " << pedHisto_name << std::endl;
-						fitted = false;
-						chi2_red = chi2_red_pedestal;
+		
+		//Select the FEBs to analyze
+		if(febNr > 107 && febNr != 113 && febNr < 139 && febNr != 126){
+    			std::cout << "Analysing the pedestal: " << pedHisto_name << std::endl;
+			fitted = false;
+			chi2_red = chi2_red_pedestal;
 
-						while(!fitted) {
-				 				// Clone and analyze the pedestal histogram
-								TH1I* histoPedestal = (TH1I*)fInPed->Get(tstring_pedHisto_name)->Clone();
-								rebinAndSmooth(histoPedestal, pedestal_rebin, pedestal_smooth);
+			while(!fitted) {
+				// Clone and analyze the pedestal histogram
+				TH1I* histoPedestal = (TH1I*)fInPed->Get(tstring_pedHisto_name)->Clone();
+				rebinAndSmooth(histoPedestal, pedestal_rebin, pedestal_smooth);
 
-                // Get the pedestal peak and add it to the sorted peaks
-								pedestalPeak = histoPedestal->GetXaxis()->GetBinCenter(histoPedestal->GetMaximumBin());
-								xpeaks_sorted.push_back(pedestalPeak);
+                		// Get the pedestal peak and add it to the sorted peaks
+				pedestalPeak = histoPedestal->GetXaxis()->GetBinCenter(histoPedestal->GetMaximumBin());
+				xpeaks_sorted.push_back(pedestalPeak);
 
-                // Call the "getPeaksMean" function to obtain mean and sigma values, and superposed gaussian function
-								means = getPeaksMean(histoPedestal, xpeaks_sorted, chi2_red, "ped");
+                		// Call the "getPeaksMean" function to obtain mean and sigma values, and superposed gaussian function
+				means = getPeaksMean(histoPedestal, xpeaks_sorted, chi2_red, "ped");
 
-      					if (means.size() == 0) {
-										// If no mean value is found, increase the chi-squared requirement
-        						chi2_red += 10;
-										std::cout << "Pedestal fit didn't work for " << pedHisto_name << ": no mean value found. Trying again ..." << std::endl;
-        						if (chi2_red > 500) {
-												// If the chi-squared limit is reached, consider it as failed and set the mean and sigma values to 0
-												std::cout << "Pedestal fit didn't work for " << pedHisto_name << ": no mean value found. Filling with (0,0)" << std::endl;
-												means.push_back(std::make_pair(0, 0));
-          							fitted = true;
-        						}
-      					} else {
-										// If the fit is successful and a peak is found, exit the fitting loop
-										fitted = true;
-      					}
+      				if (means.size() == 0) {
+					// If no mean value is found, increase the chi-squared requirement
+        				chi2_red += increase_fit_chi2;
+					std::cout << "Pedestal fit didn't work for " << pedHisto_name << ": no mean value found. Trying again ..." << std::endl;
+        				if (chi2_red > chi2_red_limit) {
+						// If the chi-squared limit is reached, consider it as failed and set the mean and sigma values to 0
+						std::cout << "Pedestal fit didn't work for " << pedHisto_name << ": no mean value found. Filling with (0,0)" << std::endl;
+						means.push_back(std::make_pair(0, 0));
+          					fitted = true;
+        				}
+      				} else {
+					// If the fit is successful and a peak is found, exit the fitting loop
+					fitted = true;
+      				}
 			
-								// Save the histogram as an image (if save_png is true), in the range [0, range_pedestal_histo]
-      					png_name = std::string(inputDir.Data()) + "/" + dataset_specific_name + "_" + pedHisto_name + ".png";
-      					if (fitted == true) {
-        						pedestals.push_back(std::make_pair(means[0].first, means[0].second));
-        						if (save_png == true) {
-          							TCanvas* canvas = new TCanvas("canvas", "canvas");
-          							histoPedestal->GetXaxis()->SetRangeUser(0, range_pedestal_histo);
-          							histoPedestal->Draw();
-          							canvas->SaveAs(png_name.c_str());
-          							delete canvas;
-        						}	
-      					}    				
-								delete histoPedestal;
-						}
-				}
-				delete tokens;
- 		}
-	
-		return pedestals;
+				// Save the histogram as an image (if save_png is true), in the range [0, range_pedestal_histo]
+      				png_name = std::string(inputDir.Data()) + "/" + dataset_specific_name + "_" + pedHisto_name + ".png";
+      				if (fitted == true) {
+        				pedestals.push_back(std::make_pair(means[0].first, means[0].second));
+        				if (save_png == true) {
+          					TCanvas* canvas = new TCanvas("canvas", "canvas");
+          					histoPedestal->GetXaxis()->SetRangeUser(0, range_pedestal_histo);
+          					histoPedestal->Draw();
+          					canvas->SaveAs(png_name.c_str());
+          					delete canvas;
+        				}	
+      				}    				
+				delete histoPedestal;
+			}
+		}
+		delete tokens;
+ 	}
+	return pedestals;
 }
 
 //Retrieves gain information for all hits
 std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 		
-		//Compute and store the mean and sigma values, from gaussian fits of the channels pedestal histograms 
-		std::vector<std::pair<double, double>> pedestals = pedestal(fInPed, inputDir);
-		std::vector<std::pair<double, double>> means;
+	//Compute and store the mean and sigma values, from gaussian fits of the channels pedestal histograms 
+	std::vector<std::pair<double, double>> pedestals = pedestal(fInPed, inputDir);
+		
+	std::vector<std::pair<double, double>> means;
   	std::vector<double> chi2s, slopes, slopes_error, xpeaks_sorted;
   	std::vector<gain> gains;
 	std::string sigHisto_name, png_name;
@@ -692,12 +694,14 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
   	while ((key = (TKey*)next())) {
 		gain gain_entry;
 		
+		// Extract the histogram name, of the form "hadc_febNr_channerNr", and FEB number
 		sigHisto_name = key->GetName();
 		tstring_sigHisto_name = sigHisto_name.c_str();
 		TObjArray* tokens = tstring_sigHisto_name.Tokenize("_");
 		tstring_febNr = ((TObjString*)tokens->At(1))->GetString();
     		febNr = tstring_febNr.Atoi();
-
+		
+		//Select the FEBs to analyze
 		if(febNr > 107 && febNr != 113 && febNr < 139 && febNr != 126){
     			std::cout << "Analysing the signal: " << sigHisto_name << std::endl;
 			std::stringstream namestream(sigHisto_name);
@@ -712,6 +716,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 			fitted = false;
 			chi2_red = chi2_red_signal;
 			while(!fitted){
+				// Clone and analyze the signal histogram
       				TH1I* histoSignal = (TH1I*)fInSig->Get(sigHisto_name.c_str())->Clone();
       				rebinAndSmooth(histoSignal, signal_rebin, signal_smooth);
 
