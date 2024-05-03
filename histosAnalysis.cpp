@@ -46,7 +46,7 @@ std::string dataset_specific_name = "afterCut";
 
 //Contains gain information of a channel, including pedestal values, slope, peaks, and associated errors.
 struct gain {
-		double pedestal;
+	double pedestal;
   	double pedestal_error;
 
   	double slope;
@@ -61,7 +61,7 @@ struct gain {
   	std::string channel;
 };
 
-//Represents the result of a linear fit, containing the slope, error, and reduced chi-squared value.
+//Represents the result of a linear fit, containing the slope (channel's gain), error, and reduced chi-squared value.
 struct lFit {
   double slope;
   double error;
@@ -210,79 +210,79 @@ void rebinAndSmooth(TH1I* histogram, int rebin, int smooth) {
  *  
  * */
 std::vector<std::pair<double, double>> getPeaksMean(TH1I* histogram,  std::vector<double> xpeaks_sorted, int requested_red_chi2, std::string histo_type) {
-		std::vector<std::pair<double, double>> means;
-		int low_binx, up_binx, den_fit_range, nr_of_fits;
-		double left_distance, right_distance, half_mean_distance, low_x, up_x;
-		double mean, sigma, red_chi2;
-		bool fitted;
+	std::vector<std::pair<double, double>> means;
+	int low_binx, up_binx, den_fit_range, nr_of_fits;
+	double left_distance, right_distance, half_mean_distance, low_x, up_x;
+	double mean, sigma, red_chi2;
+	bool fitted;
 
-		// Loop over each peak x-axis position and compute the left and right distances between peaks	
-		for(int npeak = 0; npeak < xpeaks_sorted.size(); npeak++){
-    		TAxis* xaxis = histogram->GetXaxis();
+	// Loop over each peak x-axis position and compute the left and right distances between peaks	
+	for(int npeak = 0; npeak < xpeaks_sorted.size(); npeak++){
+    	TAxis* xaxis = histogram->GetXaxis();
     		
-				if (npeak == 0) {
-      			left_distance = xpeaks_sorted[npeak];
-    		} else {
-      			left_distance = xpeaks_sorted[npeak] - xpeaks_sorted[npeak - 1];
-    		}
+	if (npeak == 0) {
+      		left_distance = xpeaks_sorted[npeak];
+    	} else {
+      		left_distance = xpeaks_sorted[npeak] - xpeaks_sorted[npeak - 1];
+    	}
 
-    		if (npeak == xpeaks_sorted.size() - 1) {
-      			right_distance = adc_last_pe - xpeaks_sorted[npeak];
-    		} else {
-      			right_distance = xpeaks_sorted[npeak + 1] - xpeaks_sorted[npeak];
-    		}
+    	if (npeak == xpeaks_sorted.size() - 1) {
+      		right_distance = adc_last_pe - xpeaks_sorted[npeak];
+    	} else {
+      		right_distance = xpeaks_sorted[npeak + 1] - xpeaks_sorted[npeak];
+    	}
 
-				// The fit range is computed as the smaller peaks' distance (right or left), divided by 2 for the signal (p.e) peaks and by 1 for the pedestal. For the signal the set distance is the adc counts distance between peaks (not true for the pedestal, as its spectrum has a single peak.
-				if(histo_type == "ped") den_fit_range = 1;
-				if(histo_type == "sig") den_fit_range = 2;
-				if(left_distance < right_distance){
-      			half_mean_distance = left_distance / den_fit_range;
-    		} else {
-      			half_mean_distance = right_distance / den_fit_range;
-    		}
+	// The fit range is computed as the smaller peaks' distance (right or left), divided by 2 for the signal (p.e) peaks and by 1 for the pedestal. For the signal the set distance is the adc counts distance between peaks (not true for the pedestal, as its spectrum has a single peak.
+	if(histo_type == "ped") den_fit_range = 1;
+	if(histo_type == "sig") den_fit_range = 2;
+	if(left_distance < right_distance){
+      		half_mean_distance = left_distance / den_fit_range;
+    	} else {
+      		half_mean_distance = right_distance / den_fit_range;
+    	}
 
-				low_binx = xaxis->FindBin(xpeaks_sorted[npeak] - half_mean_distance);
-    		up_binx  = xaxis->FindBin(xpeaks_sorted[npeak] + half_mean_distance);
+	low_binx = xaxis->FindBin(xpeaks_sorted[npeak] - half_mean_distance);
+    	up_binx  = xaxis->FindBin(xpeaks_sorted[npeak] + half_mean_distance);
 
-				fitted = false;
-    		nr_of_fits = 0;
-    		while (!fitted) {
+	fitted = false;
+    	nr_of_fits = 0;
+    	while (!fitted) {
 
-						// Create a Gaussian fit function and fit it to the data within the specified range.
-      			low_x = xaxis->GetBinCenter(low_binx);
-      			up_x  = xaxis->GetBinCenter(up_binx);
-      			TF1* gaussian_fit = new TF1("Gaussian Fit", "gaus", low_x, up_x);
-      			gaussian_fit->SetLineColor(2);
-      			histogram->Fit(gaussian_fit, "QR+");
+		// Create a Gaussian fit function and fit it to the data within the specified range.
+      		low_x = xaxis->GetBinCenter(low_binx);
+      		up_x  = xaxis->GetBinCenter(up_binx);
+      		TF1* gaussian_fit = new TF1("Gaussian Fit", "gaus", low_x, up_x);
+      		gaussian_fit->SetLineColor(2);
+      		histogram->Fit(gaussian_fit, "QR+");
 
-						// Get the mean, sigma, and reduced chi-squared value from the Gaussian fit.
-      			mean = gaussian_fit->GetParameter(1);
-      			sigma = gaussian_fit->GetParameter(2);
-      			red_chi2 = gaussian_fit->GetChisquare() / gaussian_fit->GetNDF();
+		// Get the mean, sigma, and reduced chi-squared value from the Gaussian fit.
+      		mean = gaussian_fit->GetParameter(1);
+      		sigma = gaussian_fit->GetParameter(2);
+      		red_chi2 = gaussian_fit->GetChisquare() / gaussian_fit->GetNDF();
 	  		
-						// Check if the fit meets the criteria.
-						if (red_chi2 < requested_red_chi2 &&
-          			mean > xpeaks_sorted[npeak] - half_mean_distance &&
-          			mean < xpeaks_sorted[npeak] + half_mean_distance && 
-          			/*mean + sigma < adc_last_pe*/) {
-        				means.push_back(std::make_pair(mean, sigma));
-        				fitted = true;
-      			}
+		// Check if the fit meets the criteria.
+		if (red_chi2 < requested_red_chi2 &&
+          		mean > xpeaks_sorted[npeak] - half_mean_distance &&
+          		mean < xpeaks_sorted[npeak] + half_mean_distance && 
+          		/*mean + sigma < adc_last_pe*/) {
+        			means.push_back(std::make_pair(mean, sigma));
+        			fitted = true;
+      		}
 
-						// Increment/decrement bin indices to shrink the fit range, and check termination conditions.
-						low_binx++;
-						up_binx--;
-						if (up_binx - low_binx < 2 || nr_of_fits >= max_nr_of_fits){ 
-							fitted = true;
-							means.push_back(std::make_pair(mean, sigma));
-						}
-			
-						nr_of_fits++;
-						delete gaussian_fit;
-				} 
+		// Increment/decrement bin indices to shrink the fit range, and check termination conditions.
+		low_binx++;
+		up_binx--;
+		if (up_binx - low_binx < 2 || nr_of_fits >= max_nr_of_fits){ 
+			fitted = true;
+			means.push_back(std::make_pair(mean, sigma));
 		}
+			
+		nr_of_fits++;
+		delete gaussian_fit;
+		} 
+	}
 
-		return means;
+	return means;
 }
 
 /**
@@ -351,7 +351,7 @@ std::vector<double> getPeaks(TH1I* histogram, int npeaks) {
 TGraphErrors fillGraph(std::vector<std::pair<double, double>> means, std::vector<int> indices) {
 	TGraphErrors graph(means.size());
 
-	// Loop through each peak mean and fill the graph with data points and sigmas (error bars)
+	// Loop through each peak mean and fill the graph with data points and sigmas (represented as error bars)
   	for (int peak_mean_nr = 0; peak_mean_nr < means.size(); peak_mean_nr++) {
     		graph.SetPoint(peak_mean_nr, indices[peak_mean_nr], means[peak_mean_nr].first);
     		
@@ -403,7 +403,7 @@ lFit linearFit(std::vector<std::pair<double, double>> means, std::vector<int> in
 
 //TO TEST AND SEE IF IT WORKS PROPERLY
 /**
- * The function aims at adjust the peak indices that might have been detected incorrectly,
+ * The function aims at adjusting the peak indices that might have been detected incorrectly,
  * in an attempt to improve the quality of the linear fit results. Peaks can be missed during detection or have incorrect indices.
  *
  * INPUT PARAMETERS
@@ -424,8 +424,7 @@ lFit linearFit(std::vector<std::pair<double, double>> means, std::vector<int> in
  * A vector of adjusted indices for the detected peaks.
  *
  * */
-std::vector<int> rearrangeIndex(std::vector<std::pair<double, double>> means,
-                                std::vector<int> indices, lFit fit) {
+std::vector<int> rearrangeIndices(std::vector<std::pair<double, double>> means, std::vector<int> indices, lFit fit) {
   
 	const double INCREMENT_FACTOR = 0.33;
 
@@ -444,7 +443,7 @@ std::vector<int> rearrangeIndex(std::vector<std::pair<double, double>> means,
 			}
 
 			if (rightPeakDistance > (tries + INCREMENT_FACTOR) * leftPeakDistance){
-                                for (int i = peak; i < means.size(); i++){
+                                for (int i = peak + 1; i < means.size(); i++){
                                         adjustedIndices[i]++;
                                 }
 				adjusted = true;
@@ -720,26 +719,32 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
       				TH1I* histoSignal = (TH1I*)fInSig->Get(sigHisto_name.c_str())->Clone();
       				rebinAndSmooth(histoSignal, signal_rebin, signal_smooth);
 
+				// Extract the ordered peak positions from the signal histogram, keeping only the first 'peaks_of_interest' 
 				xpeaks_sorted = getPeaks(histoSignal, max_peaks);
 				if (xpeaks_sorted.size() > peaks_of_interest){
 					xpeaks_sorted.erase(xpeaks_sorted.begin() + peaks_of_interest, xpeaks_sorted.end());
 				}
 
+				// Extract the mean and sigma values from recursive gaussian fits of the p.e. peaks
       				means = getPeaksMean(histoSignal, xpeaks_sorted, chi2_red, "hit"); 
 
+				// Initialize the vector containing the indices of the peaks (peak's number)
       				std::vector<int> index(means.size());
       				std::iota(index.begin(), index.end(), 0);
       				std::vector<int> index_error(means.size(), 0);
 
+				// An additional indices vector, without the first element, is created
       				std::pair<double, double> first_point = means[0];
       				auto means_no_first = means;
       				means_no_first.erase(means_no_first.begin());
       				auto tmp_index = index;
       				tmp_index.erase(tmp_index.begin());
 
+				// Compute a linear fit of the p.e. peaks ADC count mean value vs the corresponding p.e. peak number, with and without the first p.e. peak index
 				lFit fit = linearFit(means, index);
       				lFit fit_no_first = linearFit(means_no_first, tmp_index);
 
+				// Compare the two, keeping the linear fit with lower reduced chi squared value
       				bool better_no_first = false;
       				if (fit_no_first.red_chi2 < fit.red_chi2) {
 					std::cout << "For the histogram: " << sigHisto_name << " the fit_no_first is better." << std::endl;
@@ -751,6 +756,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 
       				png_name = std::string(inputDir.Data()) + "/" + dataset_specific_name + "_" + sigHisto_name + ".png";
 
+				// If no p.e. peak is found, fill the chi2, slopes and slopes_error with -1
       				if (means.size() == 0) {
       					chi2s.push_back(-1);
       					slopes.push_back(-1);
@@ -758,7 +764,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
       					break;
      				}
 			
-				index = rearrangeIndex(means, index, fit);
+				index = rearrangeIndices(means, index, fit);
       				fit = linearFit(means, index);
 
 				gain_entry.pedestal = pedestals[histogramNr].first;
@@ -832,19 +838,19 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 
 //The arguments are: the file name and path
 void histosAnalysis(const char* fIn){
-		//Divide the name of the file and path, passed as argument
-		TString inputFilePath(fIn);
-		TString inputDir = gSystem->DirName(inputFilePath);
- 		TString inputFileName = gSystem->BaseName(inputFilePath);
+	//Divide the name of the file and path, passed as argument
+	TString inputFilePath(fIn);
+	TString inputDir = gSystem->DirName(inputFilePath);
+ 	TString inputFileName = gSystem->BaseName(inputFilePath);
 
-		//Divide the histograms, generated in the decoding stage, in two files. One for the signal and one for the pedestal.
+	//Divide the histograms, generated in the decoding stage, in two files. One for the signal and one for the pedestal.
   	TString signalFileName = inputDir + "/signal_histograms_" + inputFileName;
   	TString pedestalFileName = inputDir + "/pedestal_histograms_" + inputFileName;
-		TFile *signalFile = new TFile(signalFileName, "RECREATE");
+	TFile *signalFile = new TFile(signalFileName, "RECREATE");
   	TFile *pedestalFile = new TFile(pedestalFileName, "RECREATE");
   	separateHistograms(fIn, signalFile, pedestalFile);
 
-		std::vector<gain> hits_vec = hits(signalFile, pedestalFile, inputDir);
+	std::vector<gain> hits_vec = hits(signalFile, pedestalFile, inputDir);
 
 
 	//Code to adjust
