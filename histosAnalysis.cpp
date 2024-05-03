@@ -763,19 +763,22 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
       					slopes_error.push_back(-1);
       					break;
      				}
-			
+
+				// Search for skipped peaks (not found by TSpectrum) and rearrange the indices, then repeat the linear gain fit
 				index = rearrangeIndices(means, index, fit);
       				fit = linearFit(means, index);
 
+				// Add the informations of the pedestal to the gain_entry of the current channel, and in the means vector
 				gain_entry.pedestal = pedestals[histogramNr].first;
 				gain_entry.pedestal_error = pedestals[histogramNr].second; 
       				means.insert(means.begin(), std::make_pair(gain_entry.pedestal, gain_entry.pedestal_error));
 				
 				for(int peak_nr = 0; peak_nr < index.size(); peak_nr++){ 
-					index[peak_nr];
+					index[peak_nr]++;
 				}
 				index.insert(index.begin(), 0);
 
+				// Try a final fit comparison, as sometimes the first p.e. peaks are not found. Keep the best linear fit, based on the reduced chi squared value 
       				tmp_index = index;
       				fit = linearFit(means, tmp_index);
       				int tries = 0;
@@ -838,6 +841,11 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 
 //The arguments are: the file name and path
 void histosAnalysis(const char* fIn){
+	// Output the cout messages to a log file
+	std::ofstream out("cout_output.log");
+	std::streambuf *coutbuffer = std::cout.rdbuf();
+	std::cout.rdbuf(out.rdbuf());
+
 	//Divide the name of the file and path, passed as argument
 	TString inputFilePath(fIn);
 	TString inputDir = gSystem->DirName(inputFilePath);
@@ -922,7 +930,9 @@ void histosAnalysis(const char* fIn){
             << hits_vec[i].pedestal << "," << 0 << "\n";
   }
 
-
-  signalFile->Close();
-  pedestalFile->Close();
+	// Final operations
+	std::cout.rdbuf(coutbuffer);
+	out.close();
+  	signalFile->Close();
+  	pedestalFile->Close();
 }
