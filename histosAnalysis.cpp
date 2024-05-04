@@ -500,7 +500,19 @@ std::vector<int> rearrangeIndices(std::vector<std::pair<double, double>> means, 
 	return indices;
 }
 
-//Saves the canvas for the linear fit
+/**
+ * Saves a canvas displaying the linear fit results of gain analysis.
+ *
+ * INPUT PARAMETERS
+ * histo: Histogram object to be drawn on the canvas.
+ * means: Vector containing mean and sigma values for peaks.
+ * indices: Vector containing indices corresponding to each peak.
+ * png_name: String specifying the name of the output PNG file.
+ *
+ * WORKFLOW
+ * The function configures and draws histograms and fitted graphs on a canvas, organizing data presentation
+ * in a manner that highlights the results of the linear fit. The canvas is then saved as a PNG file.
+ */
 void saveCanvas(TH1I* histo, std::vector<std::pair<double, double>> means, std::vector<int> indices, std::string png_name) {
 	TCanvas* canvas = new TCanvas("canvas", "Channel's gain fit");
 	canvas->Divide(1, 2);
@@ -544,31 +556,41 @@ void saveCanvas(TH1I* histo, std::vector<std::pair<double, double>> means, std::
   	delete canvas;
 }
 
-//Creates two canvas to show the distributions of slopes and reduced chi2 values
+/**
+ * Generates canvas displaying distributions of slopes and chi-squared values for quality assessment.
+ *
+ * INPUT PARAMETERS
+ * slopes: Vector containing slope values derived from linear fits.
+ * chi2s: Vector containing chi-squared values corresponding to each fit.
+ *
+ * WORKFLOW
+ * The function creates histograms for both slope distributions and reduced chi-squared values.
+ * These histograms are visualized on a split canvas to facilitate comparative analysis of fitting quality.
+ */
 void slopeChi2Canvas(std::vector<double> slopes, std::vector<double> chi2s) {
 	int nbins = 500;
 	int max_range_slopes = 250;
 	int max_range_chi2s = 1;
 
 	TH1D* slopes_histo = new TH1D("Slopes", "Slopes", nbins, 0, max_range_slopes);
-  TH1D* red_chi2s_histo = new TH1D("Reduced Chi2", "Reduced Chi2", nbins, 0, max_range_chi2s);
+  	TH1D* red_chi2s_histo = new TH1D("Reduced Chi2", "Reduced Chi2", nbins, 0, max_range_chi2s);
 
-  for (int i = 0; i < slopes.size(); i++) {
-    if (!isnan(slopes[i])) {
-      slopes_histo->Fill(slopes[i]);
-      red_chi2s_histo->Fill(chi2s[i]);
-    } else {
-      slopes_histo->Fill(-1);
-      red_chi2s_histo->Fill(-1);
-    }
-  }
+  	for (int i = 0; i < slopes.size(); i++) {
+    		if (!isnan(slopes[i])) {
+      			slopes_histo->Fill(slopes[i]);
+      			red_chi2s_histo->Fill(chi2s[i]);
+    		} else {
+      			slopes_histo->Fill(-1);
+     			red_chi2s_histo->Fill(-1);
+    		}
+  	}
 
-  TCanvas *canvas = new TCanvas("canvas", "canvas");
-  canvas->Divide(1, 2);
-  canvas->cd(1);
-  red_chi2s_histo->Draw();
-  canvas->cd(2);
-  slopes_histo->Draw();
+  	TCanvas *canvas = new TCanvas("canvas", "canvas");
+  	canvas->Divide(1, 2);
+  	canvas->cd(1);
+  	red_chi2s_histo->Draw();
+  	canvas->cd(2);
+  	slopes_histo->Draw();
 }
 
 /**
@@ -671,7 +693,24 @@ std::vector<std::pair<double, double>> pedestal(TFile *fInPed, TString inputDir)
 	return pedestals;
 }
 
-//Retrieves gain information for all hits
+/**
+ * Retrieves and analyzes gain information across all channels from both signal and pedestal histograms.
+ *
+ * INPUT PARAMETERS
+ * fInSig: Input file containing histograms for signal analysis.
+ * fInPed: Input file containing histograms for pedestal analysis.
+ * inputDir: Directory containing the input file.
+ *
+ * WORKFLOW
+ * The function first analyzes pedestal histograms to extract their mean and sigma values, and then processes
+ * signal histograms to determine gain characteristics of each channel. It employs various fitting procedures
+ * to model the peak distributions and extract peaks mean and standard deviation values.
+ * The results are used to calculate the gain across multiple histograms (channels).
+ *
+ * RETURNS
+ * A vector of 'gain' structures, each containing the computed gain information for a channel, including
+ * calculated slopes, pedestal values, and errors.
+ */
 std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 		
 	//Compute and store the mean and sigma values, from gaussian fits of the channels pedestal histograms 
@@ -806,6 +845,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
         				fitted = true;
       				}
 
+				// When the gain fit procedure ends, store the obtained red_chi2 and slope (gain) values
 				if(fitted == true){
 					chi2s.push_back(fit.red_chi2);
 					
@@ -822,7 +862,8 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
         
         				gains.push_back(gain_entry);
 				}		
-      	 
+
+				// Draws and saves as a png file the graph of the "p.e. peak number vs p.e. peak ADC count mean value", with overlaid gain fit 
          			if (save_png == true) {
 					 saveCanvas(histoSignal, means, index, png_name);
 				}	
@@ -834,12 +875,26 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 	
 		delete tokens;
 	}
-	
+
+	// Draws the channels' distribution of slopes and reduced chi2 values
 	slopeChi2Canvas(slopes, chi2s);
+	
 	return gains;
 }
 
-//The arguments are: the file name and path
+/**
+ * Main function, defining the entire histogram analysis workflow for both signal and pedestal data.
+ *
+ * INPUT PARAMETERS
+ * fIn: String pointing to the input file location (path and file name).
+ *
+ * WORKFLOW
+ * The function starts by splitting the input histograms into signal and pedestal groups and storing them
+ * in separate files. It then processes these histograms to extract gain information using the 'hits' function.
+ * A series of plots are then represented, with the slope (gain) and pedestal distributions information.
+ * Detailed log of operations is maintained throughout the process for debugging and verification purposes.
+ * A .csv file with the main analysis information is generated, for further analysis.
+ */
 void histosAnalysis(const char* fIn){
 	// Output the cout messages to a log file
 	std::ofstream out("cout_output.log");
@@ -862,77 +917,73 @@ void histosAnalysis(const char* fIn){
 
 
 	//Code to adjust
-  TCanvas* c = new TCanvas("c", "c");
-  c->Divide(2, 2);
-  c->cd(1);
+  	TCanvas* c = new TCanvas("c", "c");
+  	c->Divide(2, 2);
+  	c->cd(1);
 
-  TH1D* slope_histo = new TH1D("slope", "slope", 400, 0, 400);
-  TH1D* slope_e_histo = new TH1D("slope_e", "slope_e", 400, 0, 80);
-  TH2D* slope_vs_slope_e_histo =
-      new TH2D("Slope vs Slope_e", "Slope vs Slope_e", 400, 0, 400, 400, 0, 80);
+  	TH1D* slope_histo = new TH1D("slope", "slope", 400, 0, 400);
+  	TH1D* slope_e_histo = new TH1D("slope_e", "slope_e", 400, 0, 80);
+  	TH2D* slope_vs_slope_e_histo = new TH2D("Slope vs Slope_e", "Slope vs Slope_e", 400, 0, 400, 400, 0, 80);
 
-  TH1D* pedestal_histo = new TH1D("pedestal", "pedestal", 400, 0, 400);
-  TH1D* pedestal_e_histo = new TH1D("pedestal_e", "pedestal_e", 400, 0, 80);
-  TH2D* pedestal_vs_pedestal_e_histo =
-      new TH2D("pedestal vs pedestal_e", "pedestal vs pedestal_e", 400, 0, 400,
-               400, 0, 80);
+  	TH1D* pedestal_histo = new TH1D("pedestal", "pedestal", 400, 0, 400);
+  	TH1D* pedestal_e_histo = new TH1D("pedestal_e", "pedestal_e", 400, 0, 80);
+  	TH2D* pedestal_vs_pedestal_e_histo = new TH2D("pedestal vs pedestal_e", "pedestal vs pedestal_e", 400, 0, 400, 400, 0, 80);
 
-  TH2D* slope_vs_pedestal_histo = new TH2D(
-      "Slope vs pedestal", "Slope vs pedestal", 400, 0, 400, 400, 0, 400);
+  	TH2D* slope_vs_pedestal_histo = new TH2D("Slope vs pedestal", "Slope vs pedestal", 400, 0, 400, 400, 0, 400);
 
-  for (int i = 0; i < hits_vec.size(); i++) {
-    slope_histo->Fill(hits_vec[i].slope);
-    slope_e_histo->Fill(hits_vec[i].slope_e);
-    slope_vs_slope_e_histo->Fill(hits_vec[i].slope, hits_vec[i].slope_e);
-  }
+  	for (int i = 0; i < hits_vec.size(); i++) {
+    		slope_histo->Fill(hits_vec[i].slope);
+    		slope_e_histo->Fill(hits_vec[i].slope_e);
+    		slope_vs_slope_e_histo->Fill(hits_vec[i].slope, hits_vec[i].slope_e);
+  	}
+	
+	TCanvas* canvas1 = new TCanvas("canvas1", "canvas1");
+  	canvas1->Divide(2, 2);
+  	canvas1->cd(4);
+  	slope_histo->Draw();
+  	canvas1->cd(1);
+  	slope_e_histo->Draw();
+  	canvas1->cd(2);
+  	slope_vs_slope_e_histo->Draw("colz");
 
-  TCanvas* canvas1 = new TCanvas("canvas1", "canvas1");
-  canvas1->Divide(2, 2);
-  canvas1->cd(4);
-  slope_histo->Draw();
-  canvas1->cd(1);
-  slope_e_histo->Draw();
-  canvas1->cd(2);
-  slope_vs_slope_e_histo->Draw("colz");
+  	for (int i = 0; i < hits_vec.size(); i++) {
+    		pedestal_histo->Fill(hits_vec[i].pedestal);
+    		pedestal_e_histo->Fill(hits_vec[i].pedestal_e);
+    		pedestal_vs_pedestal_e_histo->Fill(hits_vec[i].pedestal, hits_vec[i].pedestal_e);
+  	}
 
-  for (int i = 0; i < hits_vec.size(); i++) {
-    pedestal_histo->Fill(hits_vec[i].pedestal);
-    pedestal_e_histo->Fill(hits_vec[i].pedestal_e);
-    pedestal_vs_pedestal_e_histo->Fill(hits_vec[i].pedestal,
-                                       hits_vec[i].pedestal_e);
-  }
+  	TCanvas* c2 = new TCanvas("c2", "c2");
+  	c2->Divide(2, 2);
+  	c2->cd(4);
+  	pedestal_histo->Draw();
+  	c2->cd(1);
+  	pedestal_e_histo->Draw();
+  	c2->cd(2);
+  	pedestal_vs_pedestal_e_histo->Draw("colz");
 
-  TCanvas* c2 = new TCanvas("c2", "c2");
-  c2->Divide(2, 2);
-  c2->cd(4);
-  pedestal_histo->Draw();
-  c2->cd(1);
-  pedestal_e_histo->Draw();
-  c2->cd(2);
-  pedestal_vs_pedestal_e_histo->Draw("colz");
+  	for (int i = 0; i < hits_vec.size(); i++) slope_vs_pedestal_histo->Fill(hits_vec[i].slope, hits_vec[i].pedestal);
+  	TCanvas* c3 = new TCanvas("c3", "c3");
+  	c3->cd(1);
+  	slope_vs_pedestal_histo->Draw("colz");
 
-  for (int i = 0; i < hits_vec.size(); i++)
-    slope_vs_pedestal_histo->Fill(hits_vec[i].slope, hits_vec[i].pedestal);
-  TCanvas* c3 = new TCanvas("c3", "c3");
-  c3->cd(1);
-  slope_vs_pedestal_histo->Draw("colz");
-
-  
-  std::ofstream outfile;
-  outfile.open("topCRT_calibration.csv");
-  outfile << "channel,mac5,localchannel,gain,pedestal,gainflags\n";
-  outfile << "bigint,integer,integer,real,real,integer\n";
-
-  int globalIndex = 107 * 32;
-  for (int i = 0; i < hits_vec.size(); i++) {
-    outfile << globalIndex + i << "," << hits_vec[i].feb << ","
-            << hits_vec[i].channel << "," << hits_vec[i].slope << ","
-            << hits_vec[i].pedestal << "," << 0 << "\n";
-  }
-
-	// Final operations
+	// Close the cout to the log file 
 	std::cout.rdbuf(coutbuffer);
 	out.close();
+
+	// Save the calibration information in a .csv file
+  	std::ofstream outfile;
+  	outfile.open("topCRT_calibration.csv");
+  	outfile << "channel,mac5,localchannel,gain,pedestal,gainflags\n";
+  	outfile << "bigint,integer,integer,real,real,integer\n";
+
+  	int globalIndex = 107 * 32;
+  	for (int i = 0; i < hits_vec.size(); i++) {
+    		outfile << globalIndex + i << "," << hits_vec[i].feb << ","
+            		<< hits_vec[i].channel << "," << hits_vec[i].slope << ","
+            		<< hits_vec[i].pedestal << "," << 0 << "\n";
+  	}
+
+	// Final operations
   	signalFile->Close();
   	pedestalFile->Close();
 }
