@@ -567,10 +567,11 @@ void saveCanvas(TH1I* histo, std::vector<std::pair<double, double>> means, std::
  * The function creates histograms for both slope distributions and reduced chi-squared values.
  * These histograms are visualized on a split canvas to facilitate comparative analysis of fitting quality.
  */
-void slopeChi2Canvas(std::vector<double> slopes, std::vector<double> chi2s) {
+void slopeChi2Canvas(std::vector<double> slopes, std::vector<double> chi2s, TString inputDir) {
 	int nbins = 500;
 	int max_range_slopes = 250;
 	int max_range_chi2s = 1;
+	std::string png_name;
 
 	TH1D* slopes_histo = new TH1D("Slopes", "Slopes", nbins, 0, max_range_slopes);
   	TH1D* red_chi2s_histo = new TH1D("Reduced Chi2", "Reduced Chi2", nbins, 0, max_range_chi2s);
@@ -585,12 +586,14 @@ void slopeChi2Canvas(std::vector<double> slopes, std::vector<double> chi2s) {
     		}
   	}
 
-  	TCanvas *canvas = new TCanvas("canvas", "canvas");
+  	TCanvas *canvas = new TCanvas("canvas", "Gain and reduced chi squared distributions");
   	canvas->Divide(1, 2);
   	canvas->cd(1);
   	red_chi2s_histo->Draw();
   	canvas->cd(2);
   	slopes_histo->Draw();
+
+	png_name = std::string(inputDir.Data()) + "/" + dataset_specific_name + "_SlopeChi2" + ".png";
 }
 
 /**
@@ -877,7 +880,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 	}
 
 	// Draws the channels' distribution of slopes and reduced chi2 values
-	slopeChi2Canvas(slopes, chi2s);
+	slopeChi2Canvas(slopes, chi2s, inputDir);
 	
 	return gains;
 }
