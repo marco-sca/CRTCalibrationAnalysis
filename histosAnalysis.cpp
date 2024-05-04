@@ -63,9 +63,9 @@ struct gain {
 
 //Represents the result of a linear fit, containing the slope (channel's gain), error, and reduced chi-squared value.
 struct lFit {
-  double slope;
-  double error;
-  double red_chi2;
+	double slope;
+	double error;
+	double red_chi2;
 };
 
 //--------------------------------------------------------------------------------------------------------------------------
@@ -501,46 +501,45 @@ std::vector<int> rearrangeIndices(std::vector<std::pair<double, double>> means, 
 }
 
 //Saves the canvas for the linear fit
-void saveCanvas(TH1I* histo, std::vector<std::pair<double, double>> means,
-                std::vector<int> indices, std::string png_name) {
-  TCanvas* canvas = new TCanvas("canvas", "canvas");
-  canvas->Divide(1, 2);
-  canvas->cd(1);
-  histo->Draw("");
+void saveCanvas(TH1I* histo, std::vector<std::pair<double, double>> means, std::vector<int> indices, std::string png_name) {
+	TCanvas* canvas = new TCanvas("canvas", "Channel's gain fit");
+	canvas->Divide(1, 2);
+	canvas->cd(1);
+	histo->Draw("");
 
 	// Prepare vectors for error band
-    canvas->cd(2);
-		std::vector<double> x, y, ey;
-		for (int i = 0; i < means.size(); ++i) {
-    	x.push_back(indices[i]);
-    	y.push_back(means[i].first);
-    	ey.push_back(means[i].second);  // Replace with your actual error values
-		}
+    	canvas->cd(2);
+	std::vector<double> x, y, ey;
+	for (int i = 0; i < means.size(); ++i) {
+    		x.push_back(indices[i]);
+    		y.push_back(means[i].first);
+    		ey.push_back(means[i].second);
+	}
 
-		// Create the error graph
-		TGraphErrors grError(x.size(), &x[0], &y[0], nullptr, &ey[0]);
+	// Create the error graph
+	TGraphErrors grError(x.size(), &x[0], &y[0], nullptr, &ey[0]);
 
-		// Customize the error graph to look like a band
-		grError.SetFillColorAlpha(kBlue, 0.1);
-		grError.SetFillStyle(3002); 
-    grError.SetLineColor(kRed);
-    grError.SetLineWidth(2);
+	// Customize the error graph to look like a band
+	grError.SetFillColorAlpha(kBlue, 0.1);
+	grError.SetFillStyle(3002); 
+    	grError.SetLineColor(kRed);
+    	grError.SetLineWidth(2);
 
-    // Draw the error graph first to make it a background
-    grError.Draw("A3");  // "A3" means draw axes and the fill area
-    canvas->Update();  // Update the canvas
+    	// Draw the error graph first to make it a background
+    	grError.Draw("A3"); 
+    	canvas->Update();
 
-    // Then, overlay it with your line graphs
-    auto graph = fillGraph(means, indices);
-    graph.Draw("LP same");  // "LP" means draw line and markers, "same" means overlay
+    	// Then, overlay it with your line graphs
+    	auto graph = fillGraph(means, indices);
+    	graph.Draw("LP same");
 
-    canvas->Update();  // Update the canvas again
+    	canvas->Update();
   	TF1* lfit = new TF1("lfit", "pol1");
-    lfit->SetLineColor(2);
-    graph.Fit(lfit, "Q");
-    graph.Draw("LP same");
-		canvas->Update();  
-
+    	lfit->SetLineColor(2);
+    	graph.Fit(lfit, "Q");
+    	graph.Draw("LP same");
+	canvas->Update();  
+	canvas->setEditable(true);
   	canvas->SaveAs(png_name.c_str());
   	delete canvas;
 }
@@ -795,6 +794,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
         				tries++;
       				}
 
+				// Some checks of the fit quality
 			   	if (fit.error / fit.slope > 0.3) {
         				std::cout << "The following histogram: " << sigHisto_name << " has a large error" << std::endl;
 					std::cout << "Reducing the red_chi2 and fitting again." << std::endl;
