@@ -6,15 +6,101 @@ Being located at ground level, the TPC is exposed to a high flux of cosmic muons
 - Estimate the pedestal (noise) and SiPM gain values of each Top CRT channel;
 - Develop the analysis and implement it in icaruscode , integrating it with the experiment pipeline.
 The analysis campaign, in the CRT raw data decoding stage, runs on the files produced through the Production Operations Management System (POMS). This software allows to launch, modify and monitor large scale campaigns of data processing jobs and for an effective calibration, the analysis of at least 50k events is needed (~10 mln CRT hits).
-<!-- Aggiungi una brevissima descrizione di cosa fanno, a cosa servono, i due file di codice della repository >
+<!-- Aggiungi una brevissima descrizione di cosa fanno, a cosa servono, i due file di codice della repository -->
+
 # 1. INTRODUCTION
-## The SBN Program at Fermilab
-The Short-Baseline Neutrino (SBN) program at Fermilab is a research initiative aimed at investigating the potential existence of sterile neutrinos at the eV mass-scale. Sterile neutrinos, if they do exist, are challenging to observe directly because they don't interact with regular matter through the weak nuclear force. However, their presence could lead to new oscillations among the known neutrino flavors. The search for light sterile neutrinos at SBN is motivated by a set of anomalous results in past neutrino data, most significantly from the LSND and MiniBooNE experiments\cite{sbn}.
+## 1.1 The SBN Program at Fermilab
+The Short-Baseline Neutrino (SBN) program at Fermilab is a research initiative aimed at investigating the potential existence of sterile neutrinos at the eV mass-scale. Sterile neutrinos, if they do exist, are challenging to observe directly because they don't interact with regular matter through the weak nuclear force. However, their presence could lead to new oscillations among the known neutrino flavors. The search for light sterile neutrinos at SBN is motivated by a set of anomalous results in past neutrino data, most significantly from the LSND and MiniBooNE experiments.
 
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/5f106f3e-7a8d-423a-9063-c1132bef80ef" alt="SBN Program detectors">
+  <br>
+  <p>Illustration of the three SBN detectors along the Booster Neutrino Beam.</p>
+</div>
 
+To conduct this research, as shown in the figure above, three Liquid Argon Time Projection Chambers (LArTPCs) are strategically positioned along the Booster Neutrino Beamline (BNB). These detectors include SBND, which serves as the near detector and is located 110 meters from the neutrino source, MicroBooNE, and ICARUS, which acts as the far detector. These last two detectors are positioned 470 meters and 600 meters away from the source, respectively. ICARUS has been refurbished and upgraded to maximize its performance within the SBN program. After its overhauling at CERN, ICARUS was shipped to Fermilab in 2017 and since 2022 has been actively collecting data. The joint work of SBND and ICARUS creates a world-leading sterile neutrino search experiment that can cover the parameters allowed by past anomalies at $\geq 5\sigma$ significance.
 
-To conduct this research, as shown in the figure above, three Liquid Argon Time Projection Chambers (LArTPCs) are strategically positioned along the Booster Neutrino Beamline (BNB). These detectors include SBND, which serves as the near detector and is located 110 meters from the neutrino source, MicroBooNE, and ICARUS, which acts as the far detector. These last two detectors are positioned 470 meters and 600 meters away from the source, respectively. ICARUS has been refurbished and upgraded to maximize its performance within the SBN program. After its overhauling at CERN, ICARUS was shipped to Fermilab in 2017 and since 2022 has been actively collecting data. The joint work of SBND and ICARUS creates a world-leading sterile neutrino search experiment that can cover the parameters allowed by past anomalies at $\geq 5\sigma$ significance\cite{sbn}.
-
-At Fermilab the ICARUS detector is exposed to a significant influx of cosmic particles during the brief neutrino beam-spill periods (1.6 µs for BNB and 9.6 µs for NuMI) as well as during the approximately 1 millisecond TPC drift time, which falls outside the beam-spill. To minimize the impact of cosmic ray-induced events, ICARUS is equipped with a Cosmic Ray Tagger (CRT) system that ensures comprehensive coverage of the detector in all directions\cite{Poppi:phd}.
+At Fermilab the ICARUS detector is exposed to a significant influx of cosmic particles during the brief neutrino beam-spill periods (1.6 µs for BNB and 9.6 µs for NuMI) as well as during the approximately 1 millisecond TPC drift time, which falls outside the beam-spill. To minimize the impact of cosmic ray-induced events, ICARUS is equipped with a Cosmic Ray Tagger (CRT) system that ensures comprehensive coverage of the detector in all directions.
  
-In this report, I will outline the tasks accomplished during my 2-month internship at Fermilab, as part of the "2023 Summer Students Italian program at the Fermi National Accelerator Laboratory and at other US Laboratories". After providing a brief overview of the SBN program and the theoretical and phenomenological aspects related to the search for sterile neutrinos, I will delve into the details of the ICARUS detector and the Cosmic Ray Tagger (CRT) system. My primary focus will be on the top section of the cosmic rays detector, known as the Top CRT, and I will elaborate on the calibration analysis process, which has been the central focus of my work during this internship.
+Here I will outline the tasks accomplished during my 2-month internship at Fermilab, as part of the "2023 Summer Students Italian program at the Fermi National Accelerator Laboratory and at other US Laboratories". After providing a brief overview of the SBN program and the theoretical and phenomenological aspects related to the search for sterile neutrinos, I will delve into the details of the ICARUS detector and the Cosmic Ray Tagger (CRT) system. My primary focus will be on the top section of the cosmic rays detector, known as the Top CRT, and I will elaborate on the calibration analysis process, which has been the central focus of my work during this internship.
+## 1.2 The SBN Far Detector: ICARUS
+The ICARUS-T600 detector with an active mass of 476 tons of liquid argon has been the first large-scale operating LArTPC detector. ICARUS (Imaging Cosmic And Rare Underground Signals) consists of two adjacent modules of $3.6 m \times 3.9 m \times 19.9 m$ filled with a total mass of 760 tons of liquid argon, purified by removing the electronegative impurities. Each module is composed of two LAr-TPCs, separated by a common cathode made of a stainless steel frame structure supporting punched stainless-steel sheets. The anode and the cathode planes have a maximum drift lenght of 1.5 m, corresponding to $\sim 0.96$ ms drift time at the nominal 500 V/cm electric drift field. The anode plane is composed of three parallel wire planes 3 mm apart and oriented at different angles: the first with horizontal wires and the other two at $\pm 60^\circ$ from the horizontal direction (see figure below). The optical system is composed of PMTs located behind the anodic wire planes, to collect the scintillation light used to generate the global event trigger.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/1d65c106-01f8-4683-9440-cd96b1b76843" alt="ICARUS overhauling">
+  <br>
+  <p>Picture of the ICARUS TPC during the CERN overhauling. Cathode (left), field shaping electrodes (top and bottom) and PMTs (right) are visible.</p>
+</div>
+
+The detector has been operating for 3 years (2011-2013) in the Gran Sasso Laboratory in Italy (LNGS). After that, in 2014 the ICARUS detector was transported to CERN and underwent a significant overhauling.  The two ICARUS modules have then been transported to Fermilab in July 2017 and ICARUS was installed in the SBN far detector building in August 2018.
+
+## Cosmic Background
+The ICARUS-T600 detector was initially designed to operate in the low muon cosmic background of the Gran Sasso laboratory. The conditions at FNAL are completely different: placed just below the surface the detector is subject to a significant cosmic ray background and this may induce several additional and uncorrelated triggers during the $\sim 1$ ms drift time. Simulations showed that the expected rate of cosmics depositing more than 100 MeV within the T600 active volume is of $\sim 11$ kHz. Cosmic particles entering the detector during the $1.6 \mu s$  BNB neutrino beam-spill interact in the liquid argon generating scintillation light and an event trigger, the so-called \textit{in time activity}. The \textit{out of time} cosmic activity corresponds to cosmic muons crossing the detector during the $\sim 1 ms$ TPC drift time. On average $\sim 11$ cosmic tracks are expected over the full T600 volume during the drift window, generating a background that has to be disentangled from the neutrino event tracks. One of the most important sources of background to the $\nu_e$ appearance analysis is due to electromagnetic showers induced by $\gamma$ produced by cosmic particles propagating through the detector and in the surrounding materials. By showering withing the active liquid argon volume, the cosmogenic photon can mimic a genuine $\nu_e$ CC interaction.  Without systems in place to mitigate cosmic rays, the detector would be unable to effectively conduct any meaningful search. In order to mitigate the cosmogenic induced background, the ICARUS T600 detector is indeed surrounded with an external Cosmic Ray Tagger system (CRT) below a 3 m concrete overburden (6 m water equivalent). The CRT system is described in the following sections.
+
+## The CRT
+The CRT system serves as an external subdetector located outside the cryostats, and its primary purpose is to identify charged particles that pass through or come close to the active volume of the TPC. With both the PMT and CRT systems offering an expected time resolution of a few nanoseconds, their synchronization and synergy allows for the determination of the direction of detected particles using the Photodetection system (PMT). This allows discrimination between events coming from the outside the detector from those generated inside and therefore rejecting cosmic ray induced triggers. Through a precise timing calibration effort, it becomes possible to filter out events in which the initial trigger was triggered by an identified cosmic particle entering the detector.
+
+The CRT system encompasses an area of approximately 1100 square meters and is divided into three distinct subsystems: the \textit{Top CRT}, \textit{Side CRT}, and \textit{Bottom CRT}. These subsystems complement each other, ensuring complete coverage ($4\pi$) of the active LAr volume and enabling the identification of nearly 95$\%$ of passing through cosmics. In Figure \ref{fig:TopSide} a representation of the Top and Side CRT sub-systems from the beam perspective.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/9a0106e1-15ca-41b3-9c15-33fa8a369cbd" alt="Top and Side CRT representation">
+  <br>
+  <p>Representation of the Top and Side CRT sub-systems.</p>
+</div>
+
+## The Top CRT
+The Top CRT is designed to capture around 80$\%$ of the cosmic muons that enter the ICARUS LArTPC. It consists of 123 modules, with 84 modules placed on the top horizontal plane and 39 modules covering the upper perimeter of the TPC (vertical rims). You can view an image of the Top CRT in Figure \ref{fig:Topview,} taken from the ground floor of the Far Detector Building at Fermilab, before the concrete overburden was installed. These modules function as hodoscopes and are composed of two perpendicular layers, each containing 8 scintillator bars, which are 23 cm wide. These scintillator bars are enclosed in aluminum boxes measuring 1.86 meters $\times$ 1.86 meters, as depicted in the figure below.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/d911f8c7-532e-4339-9466-efcdc4a51681" alt="Top CRT module">
+  <br>
+  <p>Sketch of a Top CRT module and its components.</p>
+</div>
+
+In the top layer, the scintillator bars are 10 mm thick, while in the bottom layer, they are 15 mm thick. Each scintillator strip in the Top CRT has two WLS fibers embedded along the length of the bar, positioned 6 cm from each side, as shown in Figure \ref{fig:channels}. These fibers are read-out from only one end, with the opposite end mirrored to enhance the light yield. A Hamamatsu S13360-1350CS SiPM is used for light detection, and the coupling of the WLS to SiPM is illustrated in Figure \ref{fig:sipm}. The system has a crosstalk probability of approximately 3$\%$ and a photon detection efficiency of around 40$\%$ at 450 nm \cite{Poppi:phd}.
+
+<!--
+<div align="center">
+  <img src="" alt="">
+  <br>
+  <p> .</p>
+</div>
+-->
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/cd890a96-2053-4e8f-bdd9-41e8e85c098d" alt="Top CRT installation">
+  <br>
+  <p> Picture of the fully installed Top CRT, before the OB installation. </p>
+</div>
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/e7cae507-fa10-4163-a0b6-f1d013a516bf" alt="Channels">
+  <br>
+  <p> Representation of the scintillator bar with the two fibers embedded along the longitudinal direction of the bar .</p>
+</div>
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/6826f2c2-2b27-4b86-840d-c76eeb6c312c" alt="Silicon Photomultiplier">
+  <br>
+  <p> Picture of the SiPM connection scheme to the fiber.</p>
+</div>
+
+The SiPMs in each module are read out and biased by their respective Front End Board (Figure \ref{fig:feb}), of the same type of those used for the Side CRT. The analog input signal is processed by a 32-channel ASIC (CITIROC\footnote{The Cherenkov Imaging Telescope Integrated Read Out Chip (CITIROC) is a 32 channel fully analog front-end ASIC dedicated to read-out of SiPMs}\cite{citroc}). These 32 signals are directed to an XILINX Spartan-6 FPGA chip, which handles basic input coincidence and triggering logic. Communication between the board and the host computer is facilitated through the Ethernet protocol.
+
+The SiPMs in each module are read out and biased by their respective Front End Board (Figure \ref{fig:feb}), of the same type of those used for the Side CRT. The analog input signal is processed by a 32-channel ASIC (CITIROC\footnote{The Cherenkov Imaging Telescope Integrated Read Out Chip (CITIROC) is a 32 channel fully analog front-end ASIC dedicated to read-out of SiPMs}\cite{citroc}). These 32 signals are directed to an XILINX Spartan-6 FPGA chip, which handles basic input coincidence and triggering logic. Communication between the board and the host computer is facilitated through the Ethernet protocol.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/50371b77-fd29-4f42-ad00-2bc59c449c49" alt="Front End Board picture">
+  <br>
+  <p> The Front End Board and its internal components. </p>
+</div>
+
+The primary function of the CRT modules is to accurately determine the precise position where muons cross through them. In the case of the Top CRT modules, they employ an XY scintillator layer configuration, enabling the creation of 64 coincidences of crossing strips (referred to as "sectors") within each module. You can see an example of a possible coincidence sector in Figure \ref{fig:coincidence} when a cosmic muon passes through.
+
+Each of the 32 channels is equipped with a CITIROC ASIC, which includes a charge amplifier with an adjustable gain and a dynamic range of 1 to 2000 photo-electrons (p.e.). The 32 trigger signals, denoted as C0 to C31, are in LVCMOS logic with a 3.3 V active state. These signals are directed to an FPGA, where they are combined using an AND logic operation to create coincidence signals for each of the two fibers from the same scintillator bar (the logic pairs the signals from even-odd channels, for example, C0$\And$C1,C2$\And$C3, and so on) so that if both fibers have detected light signals at the same time it indicates that a particle (such as a muon) has crossed that specific sector of the scintillator \cite{Poppi:phd}.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/711673a9-c33a-443c-85a8-fb20a97a5177" alt="Coincidence sector">
+  <br>
+  <p> A possible coincidence sector at the passage of a cosmic muon. </p>
+</div>
