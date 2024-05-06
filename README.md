@@ -252,3 +252,5 @@ The calibration analysis campaign was run on the Production Operations Managemen
 </details>
 
 # BIBLIOGRAPHY
+<a id="references"></a> [1]
+<a id="references"></a> [2]
