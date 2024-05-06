@@ -34,10 +34,10 @@ The ICARUS-T600 detector with an active mass of 476 tons of liquid argon has bee
 
 The detector has been operating for 3 years (2011-2013) in the Gran Sasso Laboratory in Italy (LNGS). After that, in 2014 the ICARUS detector was transported to CERN and underwent a significant overhauling.  The two ICARUS modules have then been transported to Fermilab in July 2017 and ICARUS was installed in the SBN far detector building in August 2018.
 
-## Cosmic Background
+## 1.3 Cosmic Background
 The ICARUS-T600 detector was initially designed to operate in the low muon cosmic background of the Gran Sasso laboratory. The conditions at FNAL are completely different: placed just below the surface the detector is subject to a significant cosmic ray background and this may induce several additional and uncorrelated triggers during the $\sim 1$ ms drift time. Simulations showed that the expected rate of cosmics depositing more than 100 MeV within the T600 active volume is of $\sim 11$ kHz. Cosmic particles entering the detector during the $1.6 \mu s$  BNB neutrino beam-spill interact in the liquid argon generating scintillation light and an event trigger, the so-called \textit{in time activity}. The \textit{out of time} cosmic activity corresponds to cosmic muons crossing the detector during the $\sim 1 ms$ TPC drift time. On average $\sim 11$ cosmic tracks are expected over the full T600 volume during the drift window, generating a background that has to be disentangled from the neutrino event tracks. One of the most important sources of background to the $\nu_e$ appearance analysis is due to electromagnetic showers induced by $\gamma$ produced by cosmic particles propagating through the detector and in the surrounding materials. By showering withing the active liquid argon volume, the cosmogenic photon can mimic a genuine $\nu_e$ CC interaction.  Without systems in place to mitigate cosmic rays, the detector would be unable to effectively conduct any meaningful search. In order to mitigate the cosmogenic induced background, the ICARUS T600 detector is indeed surrounded with an external Cosmic Ray Tagger system (CRT) below a 3 m concrete overburden (6 m water equivalent). The CRT system is described in the following sections.
 
-## The CRT
+## 1.4 The CRT
 The CRT system serves as an external subdetector located outside the cryostats, and its primary purpose is to identify charged particles that pass through or come close to the active volume of the TPC. With both the PMT and CRT systems offering an expected time resolution of a few nanoseconds, their synchronization and synergy allows for the determination of the direction of detected particles using the Photodetection system (PMT). This allows discrimination between events coming from the outside the detector from those generated inside and therefore rejecting cosmic ray induced triggers. Through a precise timing calibration effort, it becomes possible to filter out events in which the initial trigger was triggered by an identified cosmic particle entering the detector.
 
 The CRT system encompasses an area of approximately 1100 square meters and is divided into three distinct subsystems: the \textit{Top CRT}, \textit{Side CRT}, and \textit{Bottom CRT}. These subsystems complement each other, ensuring complete coverage ($4\pi$) of the active LAr volume and enabling the identification of nearly 95$\%$ of passing through cosmics. In Figure \ref{fig:TopSide} a representation of the Top and Side CRT sub-systems from the beam perspective.
@@ -48,7 +48,7 @@ The CRT system encompasses an area of approximately 1100 square meters and is di
   <p>Representation of the Top and Side CRT sub-systems.</p>
 </div>
 
-## The Top CRT
+### 1.4.1 The Top CRT
 The Top CRT is designed to capture around 80$\%$ of the cosmic muons that enter the ICARUS LArTPC. It consists of 123 modules, with 84 modules placed on the top horizontal plane and 39 modules covering the upper perimeter of the TPC (vertical rims). You can view an image of the Top CRT in Figure \ref{fig:Topview,} taken from the ground floor of the Far Detector Building at Fermilab, before the concrete overburden was installed. These modules function as hodoscopes and are composed of two perpendicular layers, each containing 8 scintillator bars, which are 23 cm wide. These scintillator bars are enclosed in aluminum boxes measuring 1.86 meters $\times$ 1.86 meters, as depicted in the figure below.
 
 <div align="center">
@@ -104,3 +104,91 @@ Each of the 32 channels is equipped with a CITIROC ASIC, which includes a charge
   <br>
   <p> A possible coincidence sector at the passage of a cosmic muon. </p>
 </div>
+
+# 2. Calibration of the Top CRT
+During my work at Fermilab I focused mainly on the implementation of a C++ macro for the calibration of the Top CRT channels. The analysis code is written in ROOT framework\cite{rootsite} and was implemented in icaruscode\footnote{\url{https://github.com/SBNSoftware/icaruscode}}\footnote{Version: v77$\_$00$\_$00}, integrating it with the experiment pipeline. 
+
+The primary objective of the calibration analysis is to collect a large volume of CRT data over time to construct comprehensive response spectrums from the silicon photomultipliers (SiPMs). These SiPMs are responsible for detecting and converting light signals from the scintillator modules into electronic signals. To make sense of the data, we must translate the readings from the front-end boards (FEBs), initially in generic Analog to Digital Conversion (ADC) units, into measurements of photon energies. To achieve this conversion, the code seeks out for \textit{photopeaks} within the spectra. These photopeaks are characterized by their distinctive ADC values linked to the mean values of the peaks. Additionally, a calculated parameter called "peak number" is used to correlate and plot photopeaks against their respective ADC values. By applying a linear regression to multiple data points consisting of photopeak-ADC pairs on a graph, we can determine a conversion factor for linking ADC units to the number of detected photoelectrons (p.e.) in that particular channel. This calibration process is crucial for accurately interpreting the SiPM data in terms of the energy of detected particles or photons.
+In the following section I present what the calibration analysis code does.
+
+## 2.1 The calibration analysis
+Goal of the analysis is to estimate the pedestal and gain values of each Top CRT channel. Those can be obtained by fitting the integrated ADC charge spectrum of each channel, exploiting the feature that at each trigger the FEB stores the ADC value of each of the 32 channels.
+
+Before running the code, there is a decoding stage, where the raw data from each FEB are selected and converted into a readable format (decoding). The most relevant information of the CRT data product\footnote{\url{https://github.com/SBNSoftware/sbnobj/blob/develop/sbnobj/ICARUS/CRT/CRTData.hh}} that are used in the analysis are:
+- the Front End Board MAC5 address (whose variable name is \textit{fMac5}), as mapped in Figure \ref{fig:mac5};
+- the ADC values of all 32 FEB channels (\textit{fAdc[32]});
+- the flag (\textit{fFlags}), that represents the CRT hit status.
+- 
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/6d3beaf3-0c1e-4d8c-a348-b48478cb1916" alt="Mac5 map">
+  <br>
+  <p> Map of the MAC5 addresses of the FEBs/modules of the Top CRT. </p>
+</div>
+
+The flag variable is an integer and can take the values: 3 if it is related to a regular CRT signal hit, 7 or 9 if it was a special reset hit. These reset hits are special events associated with a global trigger signal or a PPS (Pulse Per Second) signal regulated by the FEBs and generated by a White Rabbit system \cite{Poppi:phd}.
+
+After the decoding stage, the data entries are used to construct integrated ADC spectra for all the channels. This process involves iterating through the dataset and, for each entry corresponding to a CRT hit caused by a cosmic particle, recording the ADC value for each channel. This information is then used to generate histograms for each of the 32 channels within the 231 modules/FEBs of the Top CRT. Each histogram is named "hadc$\_$channel$\#\_$feb$\#$," where "channel$\#$' and "feb$\#$" are replaced with the specific channel and FEB numbers, respectively. An example of spectrum is showed in Figure \ref{fig:spectrumexample}.
+Additionally, the same dataset is employed to create histograms representing the inherent electronic noise in each channel, commonly referred to as the \textit{pedestal}. Furthermore, histograms are generated to display the ADC distribution of signal hits as well as histograms displaying the sum of the ADC counts of all the channels, for each module/FEB (Figure \ref{fig:sumexample}).
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/948a78ef-72d1-4deb-bc36-33d44beefdfe" alt="channel spectrum example">
+  <br>
+  <p> Example of spectrum for a 15 mm scintillator channel (Top Layer) zoomed in the range 0 – 1100 ADC Counts. The pedestal and signal peaks are visible. </p>
+</div>
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/8717f603-5af6-4f21-b659-7e8a5fd469aa" alt="Example all signal sum on channels">
+  <br>
+  <p> Histogram obtained by the sum of the ADC count values of all the 32 channels of the FEB with mac5 address 136. </p>
+</div>
+
+### 2.1.1 Signal and pedestal selection
+To generate the channels' signal spectra I selected the data entries\footnote{Data from calibration run 9989 of 6/26/2023 ($\sim$ 23 hours)}\footnote{In order to increase the statistic of CRT Hits, mainly for calibration purposes, the acquisition window for the Top CRT was set to $\pm$ 25 ms w.r.t. trigger timestamp. The window is extremely larger than the $\sim$ 2 ms drift window of the TPC, this is why the CRT hits sample of the 50 ms window is used only for calibration purposes, the normal data flow of event reconstruction uses a software reduced window of $\pm$ 3 ms.\cite{Poppi:phd}} with $fFlags = 3$ (the module recorded signal generated by a cosmic particle) excluding all ADC \textless 250 and took the highest 2 ADC counts in each layer of scintillator bars. These values were used to fill the histograms of the corresponding channels.
+
+Initially the pedestal distributions were derived by analyzing the ADC values recorded in the channels of each layer with $fFlags = 3$, with the exclusion of the top 6 highest values per layer. In this way I had the ADC spectrum of a channel when it did not participate in the CRT hit channel coincidence (also referred to as non-triggering channel logic) \footnote{CRT triggering coincidence: Signal hits have at least 4 channels above the threshold, due to the internal trigger logic}. As can be observed in Figure \ref{fig:notrig} and in Figure \ref{fig:spectrumfullnotrig} the distribution of the pedestal is larger then the average distance between the photoelectron peaks. This behaviour is not suitable to correctly estimate the waveform baseline for the pedestal.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/dbd0822f-d124-46cc-8d4f-90df984853e4" alt="Noise spectrum from non-triggering channels">
+  <br>
+  <p> ADC spectrum of a top layer channel when it did not participate in the CRT hit channel coincidence. </p>
+</div>
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/093ca8ea-63ea-4619-963c-726d9efeef9e" alt="Full top layer channel's spectrum">
+  <br>
+  <p> ADC spectrum of a top layer channel. </p>
+</div>
+
+I have then explored a different extraction method for the pedestal selection. By definition, random triggers of the CRT FEB should result in random values of each channel around its pedestal. Using the same dataset I exploited the T1 and T0 special reset events which behave as an external random triggers. Those hits are generated by an external uncorrelated source (Pulse per second signal or PMT trigger), so that the ADC value of all 32 channels are most likely electronic noise and a new sub-sample with a reduced statistic was obtained (Figures \ref{fig:resetlog} and \ref{fig:resetnolog}). The new distribution was considered to be more suitable for the pedestal evaluation.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/24dedd25-9843-488b-8645-21d8dd6ba52b" alt="Example of pedestal from reset hits, log scale">
+  <br>
+  <p> Pedestal distribution for a Top Layer channel obtained from the reset hits, with a lower statistic and with the y-axis in log scale. </p>
+</div>
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/d05d4e66-b9c1-4c12-ae7f-a3e58845edd9" alt="Example of pedestal from reset hits, no log scale">
+  <br>
+  <p> Pedestal distribution for a Top Layer channel obtained from the reset hits, with a lower statistic. </p>
+</div>
+
+A problem was observed when digitizing the special reset events of the T0/T1 counters: not all reset events were correctly identified and flagged as special events, but they were treated as regular signal hits (65$\%$ of the times the flag is correct \cite{Poppi:phd}). To solve this issue the sum of all the 32 ADC values for each hit can be used, in order to separate T1/T0 reset hits from signal ones. In Figure \ref{fig:sum} we can see that the sum of the signal given by reset hits (red peak on the left) is superposed on a similar peak related to the sum of the ADC values of signal hits (in blue). In the next calibration analysis a cut for signal sum values over 7000 ADC will be tried for a better selection of reset hits.
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/fbe4c4db-bc37-4011-b881-be7e6be2c7c9" alt="Signal sum">
+  <br>
+  <p> Superposition of the distributions of adc values sum on all 32 channels of a FEB for pedestal obtained with reset hits correctly flagged (red) and signal hits (blue). </p>
+</div>
+
+Another viable option for the pedestal estimation, for future calibrations, is to look at the signal distribution of broken channels, where no signal is detected above the pedestal (Figure \ref{fig:broken}).
+
+<div align="center">
+  <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/febf01c9-3c9c-458f-9c6b-c018a17a7d39" alt="Broken channel spectrum">
+  <br>
+  <p> Example of a top layer broken channel's extracted signal. </p>
+</div>
+
+In conclusion,  the distribution for the pedesal is still very large, even if it is better if compared with the «Non triggering channels» extraction method of the data. Is also possible to notice the presence of two peaks in the distribution (circled in red in Figure \ref{fig:strangepeak}), where the left peak is generated by electronic noise when there’s a signal hit in other channels of the same FEB \cite{Poppi:phd} and the right peak could be a p.e. peak covered by the pedestal or SiPM intrinsic electronic noise. In an attempt to obtain a "clean" pedestal further investigation is required.
+
+## 2.1.2 Analysis algorithm
