@@ -376,7 +376,8 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
   					}
 
 
-/*
+					//Instead of erasing here you tryed with a counter on the number of channels for the pedestal = last 10
+/*					
   					int counter = 0;
   					for (auto it = top_layer.begin(); it != top_layer.end() && counter < pedChannels; ++it, ++counter) {
     					macToHistos_nonTriggeringPed[febdat.fMac5]->at(it->second)->Fill(it->first);
@@ -395,7 +396,8 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
 
   	    if (febdat.fFlags == 9 || febdat.fFlags == 7) {
 		      c++;
-
+	  //The first time it enters in the if() this isn't true, but if for the next hit the condition is true, then you have two or more hits flagged as reset in the same event. 
+	  // Do you want to keep this check???
           if (current_feb == febdat.fMac5) {
 						continue;
 	      	}
