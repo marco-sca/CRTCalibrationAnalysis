@@ -19,9 +19,9 @@ The Short-Baseline Neutrino (SBN) program at Fermilab is a research initiative a
   <p><strong>Figure 1.</strong> Illustration of the three SBN detectors along the Booster Neutrino Beam.</p>
 </div>
 
-To conduct this research, as shown in the [Figure 1](#fig1), three Liquid Argon Time Projection Chambers (LArTPCs) are strategically positioned along the Booster Neutrino Beamline (BNB). These detectors include SBND, which serves as the near detector and is located 110 meters from the neutrino source, MicroBooNE, and ICARUS, which acts as the far detector. These last two detectors are positioned 470 meters and 600 meters away from the source, respectively. ICARUS has been refurbished and upgraded to maximize its performance within the SBN program. After its overhauling at CERN, ICARUS was shipped to Fermilab in 2017 and since 2022 has been actively collecting data. The joint work of SBND and ICARUS creates a world-leading sterile neutrino search experiment that can cover the parameters allowed by past anomalies at $\geq 5\sigma$ significance.
+To conduct this research, as shown in the [Figure 1](#fig1), three Liquid Argon Time Projection Chambers (LArTPCs) are strategically positioned along the Booster Neutrino Beamline (BNB). These detectors include SBND, which serves as the near detector and is located 110 meters from the neutrino source, MicroBooNE, and ICARUS, which acts as the far detector. These last two detectors are positioned 470 meters and 600 meters away from the source, respectively. ICARUS has been refurbished and upgraded to maximize its performance within the SBN program. After its overhauling at CERN, ICARUS was shipped to Fermilab in 2017 and since 2022 has been actively collecting data. The joint work of SBND and ICARUS creates a world-leading sterile neutrino search experiment that can cover the parameters allowed by past anomalies at $\geq 5\sigma$ significance[[1]](#ref1).
 
-At Fermilab the ICARUS detector is exposed to a significant influx of cosmic particles during the brief neutrino beam-spill periods (1.6 µs for BNB and 9.6 µs for NuMI) as well as during the approximately 1 millisecond TPC drift time, which falls outside the beam-spill. To minimize the impact of cosmic ray-induced events, ICARUS is equipped with a Cosmic Ray Tagger (CRT) system that ensures comprehensive coverage of the detector in all directions.
+At Fermilab the ICARUS detector is exposed to a significant influx of cosmic particles during the brief neutrino beam-spill periods (1.6 µs for BNB and 9.6 µs for NuMI) as well as during the approximately 1 millisecond TPC drift time, which falls outside the beam-spill. To minimize the impact of cosmic ray-induced events, ICARUS is equipped with a Cosmic Ray Tagger (CRT) system that ensures comprehensive coverage of the detector in all directions [[2]](#ref2).
  
 Here I will outline the tasks accomplished during my 2-month internship at Fermilab, as part of the "2023 Summer Students Italian program at the Fermi National Accelerator Laboratory and at other US Laboratories". After providing a brief overview of the SBN program and the theoretical and phenomenological aspects related to the search for sterile neutrinos, I will delve into the details of the ICARUS detector and the Cosmic Ray Tagger (CRT) system. My primary focus will be on the top section of the cosmic rays detector, known as the Top CRT, and I will elaborate on the calibration analysis process, which has been the central focus of my work during this internship.
 
@@ -102,7 +102,7 @@ Each of the 32 channels is equipped with a CITIROC ASIC, which includes a charge
 </details>
 
 # 2. Calibration of the Top CRT
-During my work at Fermilab I focused mainly on the implementation of a C++ macro for the calibration of the Top CRT channels. The analysis code is written in ROOT framework\cite{rootsite} and was implemented in icaruscode\footnote{\url{https://github.com/SBNSoftware/icaruscode}}\footnote{Version: v77$\_$00$\_$00}, integrating it with the experiment pipeline. 
+During my work at Fermilab I focused mainly on the implementation of a C++ macro for the calibration of the Top CRT channels. The analysis code is written in ROOT framework\cite{rootsite} and was implemented in [icaruscode](https://github.com/SBNSoftware/icaruscode) (Version: v77_00_00), integrating it with the experiment pipeline. 
 
 The primary objective of the calibration analysis is to collect a large volume of CRT data over time to construct comprehensive response spectrums from the silicon photomultipliers (SiPMs). These SiPMs are responsible for detecting and converting light signals from the scintillator modules into electronic signals. To make sense of the data, we must translate the readings from the front-end boards (FEBs), initially in generic Analog to Digital Conversion (ADC) units, into measurements of photon energies. To achieve this conversion, the code seeks out for \textit{photopeaks} within the spectra. These photopeaks are characterized by their distinctive ADC values linked to the mean values of the peaks. Additionally, a calculated parameter called "peak number" is used to correlate and plot photopeaks against their respective ADC values. By applying a linear regression to multiple data points consisting of photopeak-ADC pairs on a graph, we can determine a conversion factor for linking ADC units to the number of detected photoelectrons (p.e.) in that particular channel. This calibration process is crucial for accurately interpreting the SiPM data in terms of the energy of detected particles or photons.
 In the following section I present what the calibration analysis code does.
@@ -113,7 +113,7 @@ In the following section I present what the calibration analysis code does.
 ## 2.1 The calibration analysis
 Goal of the analysis is to estimate the pedestal and gain values of each Top CRT channel. Those can be obtained by fitting the integrated ADC charge spectrum of each channel, exploiting the feature that at each trigger the FEB stores the ADC value of each of the 32 channels.
 
-Before running the code, there is a decoding stage, where the raw data from each FEB are selected and converted into a readable format (decoding). The most relevant information of the CRT data product\footnote{\url{https://github.com/SBNSoftware/sbnobj/blob/develop/sbnobj/ICARUS/CRT/CRTData.hh}} that are used in the analysis are:
+Before running the code, there is a decoding stage, where the raw data from each FEB are selected and converted into a readable format (decoding). The most relevant information of the [CRT data product](https://github.com/SBNSoftware/sbnobj/blob/develop/sbnobj/ICARUS/CRT/CRTData.hh) that are used in the analysis are:
 - the Front End Board MAC5 address (whose variable name is \textit{fMac5}), as mapped in [Figure 8](#fig8);
 - the ADC values of all 32 FEB channels (\textit{fAdc[32]});
 - the flag (\textit{fFlags}), that represents the CRT hit status.
@@ -252,5 +252,5 @@ The calibration analysis campaign was run on the Production Operations Managemen
 </details>
 
 # BIBLIOGRAPHY
-<a id="references"></a> [1]
-<a id="references"></a> [2]
+<a id="ref1"></a> [1] D. W. Schmitz P. A. N. Machado, O. Palamara. The short-baseline neutrino program at fermilab. *Annu. Rev. Nucl. Part. Sci.*, 2019.
+<a id="ref2"></a> [2] Francesco Poppi. The Cosmic Ray Tagger of the ICARUS detector: construction , commissioning and performances in the first physics run. *PhD thesis, Alma Mater Studiorum - Universita` di Bologna*, 2023.
