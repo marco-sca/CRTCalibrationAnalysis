@@ -243,8 +243,7 @@ where $n_{p.e.}$ is the resulting number of photo-electrons, $ADC_i$ is the ADC 
 <details>
 <summary>Software and code framework</summary>
 
-## 2.1.3 POMS
-<a id="poms"></a>
+## 2.1.3 <a id="poms">POMS</a>
 The calibration analysis campaign was run on the Production Operations Management System (POMS) \cite{poms} that allows to launch, modify and monitor large scale campaigns of data processing jobs. This was needed given the large scale of the analysis work: it was estimated that for an effective calibration of the Top CRT, at least 50 thousand events are needed, corresponding to $\sim$ 10 million CRT hits \cite{Poppi:phd}. POMS provides a web service interface that enables automated jobs submission on distributed resources according to customers’ requests and subsequent monitoring and recovery of failed submissions. Part of the calibration work included understanding the procedure to submit a POMS campaign gauged on my needs. Only the decoding stage was executed as a campaign stage in POMS and produced a substantial number of histograms. However, due to the nature of the decoding stage, which processes data file by file, each file containing information on approximately 50 PMT triggered events (around 10 CRT hits from cosmic rays within the data acquisition window), the resulting histograms had relatively few entries. Therefore, before running the calibration analysis code, I had to develop a script to merge a large number of ROOT files, enabling the creation of histograms with an higher number of entries.
 
 ## 2.1.4 LArSoft
