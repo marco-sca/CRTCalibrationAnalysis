@@ -6,7 +6,7 @@ Being located at ground level, the TPC is exposed to a high flux of cosmic muons
 - Estimate the pedestal (noise) and the SiPM gain values of each Top CRT channel, through `histosAnalysis.cpp`;
 - Develop the analysis and implement it in `icaruscode` , integrating it with the experiment pipeline.
 
-The analysis campaign, in the CRT raw data decoding stage, runs on the files produced through the Production Operations Management System (POMS) [[4](#ref4)]. This software allows to launch, modify and monitor large scale campaigns of data processing jobs and for an effective calibration, the analysis of at least 50k events is needed (~10 mln CRT hits). After this stage, the histograms containing the SiPMs response spectra are generated in POMS through `CRTCalibrationAnalysis_module.cc`, and later analyzed by `histosAnalysis.cpp`.
+The analysis campaign, in the CRT raw data decoding stage, runs on the files produced through the Production Operations Management System (POMS) [[4](#ref4)]. This software allows to launch, modify and monitor large scale campaigns of data processing jobs and for an effective calibration, the analysis of at least 50k events is needed (~10 mln CRT hits). After this stage, the histograms containing the SiPMs response spectra are generated in POMS through `CRTCalibrationAnalysis_module.cc`, and later analyzed by `histosAnalysis.cpp`. A description of the code and its output can be found in *Section 2.1* here below.
 
 # 1. INTRODUCTION
 ## 1.1 The SBN Program at Fermilab
@@ -207,7 +207,7 @@ In conclusion,  the distribution for the pedesal is still very large, even if it
 </div>
 
 ## 2.1.2 Analysis algorithm
-Multiple gaussian fits are performed on the pedestals obtained through the reset hits, optimizing the fit range until the reduced $\chi^2$ is smaller than 10 or until there are no more bins in the selected range (see [Figure 18](#fig18)). The mean value extracted from the fit is then stored for the channel's gain evaluation.
+In `histosAnalysis.cpp`, multiple gaussian fits are performed on the pedestals obtained through the reset hits, optimizing the fit range until the reduced $\chi^2$ is smaller than 10 or until there are no more bins in the selected range (see [Figure 18](#fig18)). The mean value extracted from the fit is then stored for the channel's gain evaluation.
 
 <a id="fig18"></a>
 <div align="center">
@@ -216,16 +216,16 @@ Multiple gaussian fits are performed on the pedestals obtained through the reset
   <p> <strong>Figure 18.</strong> Pedestal distribution for a Bottom Layer channel obtained from the reset hits (blue) and superposed gaussian fit (red) with $\chi^2$\textless 10. </p>
 </div>
 
-For the signal a similar procedure is followed: the ROOT function TSpectrum\cite{root} is used to search for the first 5 peaks in the hits spectrum, quantized photoelectron peaks are fitted recursively using a gaussian distribution, adjusting the fitted range of the histogram in order to minimize the reduced $\chi^2$. For each fit, the minimum distance between the previous and following peaks is used as the range and is recursively reduced until $\chi^2$ \textless 2 or until there are no more bins in the selected range. In [Figure 19](#fig19) a distribution of the charge spectrum for a bottom layer's channel is shown with overlayed the recursive gaussian fit of the first 5 photoelectron peaks. The mean and standard deviation values of the peaks, extracted from the fit, are then stored.
+For the signal a similar procedure is followed: the ROOT function [TSpectrum](https://root.cern.ch/doc/master/classTSpectrum.html) is used to search for the first 5 peaks in the hits spectrum, quantized photoelectron peaks are fitted recursively using a gaussian distribution, adjusting the fitted range of the histogram in order to minimize the reduced $\chi^2$. For each fit, the minimum distance between the previous and following peaks is used as the range and is recursively reduced until $\chi^2$ < 2 or until there are no more bins in the selected range. In [Figure 19](#fig19) a distribution of the charge spectrum for a bottom layer's channel is shown with overlayed the recursive gaussian fit of the first 5 photoelectron peaks. The mean and standard deviation values of the peaks, extracted from the fit, are then stored.
 
 <a id="fig19"></a>
 <div align="center">
   <img src="https://github.com/marco-sca/CRTCalibrationAnalysis/assets/140084724/a097c2cc-64e7-4a4f-895e-e44ed9fb9ece" alt="Recursive Fit" width="400">
   <br>
-  <p> <strong>Figure 19.</strong> Recursive single photoelectron peaks fitting with a gaussian distribution for a bottom layer's channel when participating in the CRT triggering coincidence. The signal has a cut for ADC counts \textgreater 250 and the left peak corresponds to 2 p.e. </p>
+  <p> <strong>Figure 19.</strong> Recursive single photoelectron peaks fitting with a gaussian distribution for a bottom layer's channel when participating in the CRT triggering coincidence. The signal has a cut for ADC counts > 250 and the left peak corresponds to 2 p.e. </p>
 </div>
 
-The gain estimation process relies on mean ADC values of detected peaks, plotted against their corresponding peak numbers. The gain for a specific channel is determined as the slope of a linear fit applied to this distribution. However, a peak is sometimes skipped by TSpectrum and some peaks are misidentified with others, introducing errors in the fit. To address this, an index rearrangement function was introduced to adjust the order of peak indices, exploiting a minimization of the reduced chi-squared ($\chi^2$) value of the fit. This function iteratively analyzes the spacing between adjacent peaks using this information  to adjusts their positions. The result of this work is presented in [Figure 20](#fig20), where an example of gain fit for a top layer's channel is shown. The colored band represents the growing sigma value of the fitted photo-electron peaks and the y-intercept is the ADC count mean value of the pedestal peak.
+The gain estimation process relies on mean ADC values of detected peaks, plotted against their corresponding peak numbers. The gain for a specific channel is determined as the slope of a linear fit applied to this distribution. However, it was observed that a peak is sometimes skipped by TSpectrum and some peaks are misidentified with others, introducing errors in the fit. To address this, an index rearrangement function `rearrangeIndex()` was introduced to adjust the order of peak indices, exploiting a minimization of the reduced chi-squared ($\chi^2$) value of the fit. This function iteratively analyzes the spacing between adjacent peaks using this information to adjusts their positions. The result of this work is presented in [Figure 20](#fig20), where an example of gain fit for a top layer's channel is shown. The colored band represents the growing sigma value of the fitted photo-electron peaks and the y-intercept is the ADC count mean value of the pedestal peak.
 
 <a id="fig20"></a>
 <div align="center">
@@ -235,9 +235,9 @@ The gain estimation process relies on mean ADC values of detected peaks, plotted
 </div>
 
 Following the calibration of pedestal and gains for all the Top CRT channels, the conversion of ADC counts to photo-electrons can be obtained by:
-\begin{equation}
-    n_{p.e.} = \frac{ADC_i - Ped_i}{G_i}
-\end{equation}
+
+$n_{p.e.} = \frac{ADC_i - Ped_i}{G_i}$
+
 where $n_{p.e.}$ is the resulting number of photo-electrons, $ADC_i$ is the ADC value of the i-th channel and $Ped_i$ and $G_i$ are, respectively, its pedestal and its gain as evaluated from the calibration. As future work, the average amount of light ("light yield") produced by the particles when they pass through scintillator bars will be determined. With the gain value and an adequate statistic we can obtain the distribution of the p.e. for each bar, fit and search for the peak (whose value represents the most probable number of p.e. produced per event) that is the average light yield for each channel.
 </details>
 
@@ -245,10 +245,16 @@ where $n_{p.e.}$ is the resulting number of photo-electrons, $ADC_i$ is the ADC 
 <summary>Software and code framework</summary>
 
 ## 2.1.3 POMS
-The calibration analysis campaign was run on the Production Operations Management System (POMS) \cite{poms} that allows to launch, modify and monitor large scale campaigns of data processing jobs. This was needed given the large scale of the analysis work: it was estimated that for an effective calibration of the Top CRT, at least 50 thousand events are needed, corresponding to $\sim$ 10 million CRT hits \cite{Poppi:phd}. POMS provides a web service interface that enables automated jobs submission on distributed resources according to customers’ requests and subsequent monitoring and recovery of failed submissions. Part of the calibration work included understanding the procedure to submit a POMS campaign gauged on my needs. Only the decoding stage was executed as a campaign stage in POMS and produced a substantial number of histograms. However, due to the nature of the decoding stage, which processes data file by file, each file containing information on approximately 50 PMT triggered events (around 10 CRT hits from cosmic rays within the data acquisition window), the resulting histograms had relatively few entries. Therefore, before running the calibration analysis code, I had to develop a script to merge a large number of ROOT files, enabling the creation of histograms with an higher number of entries.
+The calibration analysis campaign was run on the Production Operations Management System (POMS) [4](#ref4) that allows to launch, modify and monitor large scale campaigns of data processing jobs. This was needed given the large scale of the analysis work: it was estimated that for an effective calibration of the Top CRT, at least 50 thousand events are needed, corresponding to $\sim$ 10 million CRT hits [2](#ref2). POMS provides a web service interface that enables automated jobs submission on distributed resources according to customers’ requests and subsequent monitoring and recovery of failed submissions. Part of the calibration work included understanding the procedure to submit a POMS campaign gauged on my needs. Only the decoding stage was executed as a campaign stage in POMS and produced a substantial number of histograms. However, due to the nature of the decoding stage, which processes data file by file, each file containing information on approximately 50 PMT triggered events (around 10 CRT hits from cosmic rays within the data acquisition window), the resulting histograms had relatively few entries. Therefore, before running the calibration analysis code an `hadd` of the ROOT files containing these histograms was needed:
+```
+hadd final merged file name.root /path/to/histogram/files/*.root
+```
+enabling the creation of histograms with an higher number of entries.
 
-## 2.1.4 LArSoft
+
+## 2.1.4 LArSoft and icaruscode
 <!-- To complete -->
+
 </details>
 
 # BIBLIOGRAPHY
