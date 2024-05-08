@@ -1,9 +1,13 @@
 /**
- * @file   CRTCalibrationAnalysis_module.cc
- * @brief  Access CRT data and reco products and compare to MCTruth info 
- * @author Chris Hilgenberg (Chris.Hilgenberg@colostate.edu)
+ * CRT Calibration Analysis Module
  * 
- * The last revision of this code was done in October 2018 with LArSoft v07_06_01.
+ * This file contains the CRT Calibration Analysis module to access CRT data and reco products.
+ * 
+ * Part of the initialization code, including includes and the definition of the class 
+ * and methods, was implemented by Chris Hilgenberg (Chris.Hilgenberg@colostate.edu).
+ * It was last revised in October 2018 with LArSoft v07_06_01.
+ * 
+ * The implementation details and the bulk of the logic, were developed by me.
  */
 
 // LArSoft includes
@@ -68,174 +72,137 @@ using std::set;
 using std::pair;
 using std::to_string;
 
-//Is it good procedure to define in this way the struct? How can I define it in the scope of the function that use this struct type and keep it private?
-/*
-struct ChannelInfo {
-   int feb;
-   int channel;
-	 int adc;
-   bool broken;
-   ChannelInfo(int feb, int channel, std::string name)
-     	: feb(feb), channel(channel), name(name) {}
-};
-*/
+//-----------------------------------------------------------------------
 namespace icarus {
 namespace crt {
 
-  class CRTCalibrationAnalysis : public art::EDAnalyzer
-  {
-  public:
+	class CRTCalibrationAnalysis : public art::EDAnalyzer
+  	{
+  	public:
 
-    struct Config {
+    		struct Config {
       
-      // Save some typing:
-      using Name = fhicl::Name;
-      using Comment = fhicl::Comment;
+  				// Save some typing:
+      			using Name = fhicl::Name;
+      			using Comment = fhicl::Comment;
       
-      fhicl::Atom<art::InputTag> CRTDAQLabel {
-        Name("CRTDAQLabel"),
-        Comment("tag of the input data product with calibrated CRT data")
-        };
+      			fhicl::Atom<art::InputTag> CRTDAQLabel {
+        			Name("CRTDAQLabel"),
+        			Comment("tag of the input data product with calibrated CRT data")
+        		};
    
 
-    }; // Config
+    		}; // Config
 
-    using Parameters = art::EDAnalyzer::Table<Config>;
+    		using Parameters = art::EDAnalyzer::Table<Config>;
     
   
-    /// Constructor: configures the module (see the Config structure above)
-    explicit CRTCalibrationAnalysis(Parameters const& config);
+    		// Constructor: configures the module (see the Config structure above)
+    		explicit CRTCalibrationAnalysis(Parameters const& config);
 
-    virtual void beginJob() override;
-    virtual void beginRun(const art::Run& run) override;
-    virtual void analyze (const art::Event& event) override;
-    void endJob() override;
-    void endRun(const art::Run&) override;
+    		virtual void beginJob() override;
+    		virtual void beginRun(const art::Run& run) override;
+    		virtual void analyze (const art::Event& event) override;
+    		void endJob() override;
+    		void endRun(const art::Run&) override;
 
-  private:
+  	private:
 
-    art::ServiceHandle<art::TFileService> tfs;
+    		art::ServiceHandle<art::TFileService> tfs;
 
-		//std::vector<ChannelInfo> brokenChannels;
-		map<uint8_t, TH1F*> pedSigHistos;
-		map<uint8_t, TH1F*> pedResHistos;
-    map<uint8_t,vector<TH1F*>*> macToHistos;
-		map<uint8_t,vector<TH1F*>*> macToHistos_nonTriggeringPed;
-    map<uint8_t,vector<TH1F*>*> macToHistos_ped;
-    map<uint8_t,vector<TH1F*>*> macToHistos_sig;
-    TRandom* rnd;
-    // The parameters we'll read from the .fcl file.
-    art::InputTag fCRTDAQProducerLabel;
+		map<uint8_t, TH1F*> allChannels_adcSum_histograms;
+		map<uint8_t, TH1F*> allChannels_resetHits_adcSum_histograms;
+    		map<uint8_t,vector<TH1F*>*> channelSpectrum_histograms;
+		map<uint8_t,vector<TH1F*>*> channelSpectrum_pedestal_noTrig_histograms;
+    		map<uint8_t,vector<TH1F*>*> channelSpectrum_pedestal_resetHits_histograms;
+    		map<uint8_t,vector<TH1F*>*> channelSpectrum_onlySignal_histograms;
+    		TRandom* rnd;
 
-    // Other variables that will be shared between different methods.
-    geo::GeometryCore const* fGeometryService;   ///< pointer to Geometry provider
-    int                      fTriggerOffset;     ///< (units of ticks) time of expected neutrino event
-    CRTCommonUtils* fCrtutils;  
-  }; // class CRTCalibrationAnalysis
+    		// The parameters we'll read from the .fcl file.
+    		art::InputTag fCRTDAQProducerLabel;
 
+    		// Other variables that will be shared between different methods.
+    		geo::GeometryCore const* fGeometryService;   ///< pointer to Geometry provider
+    		int                      fTriggerOffset;     ///< (units of ticks) time of expected neutrino event
+    		CRTCommonUtils* fCrtutils;  
+  	}; // class CRTCalibrationAnalysis
 
-  //-----------------------------------------------------------------------
+//-----------------------------------------------------------------------
    
-  CRTCalibrationAnalysis::CRTCalibrationAnalysis(Parameters const& config)
-    : EDAnalyzer(config)
-    , fCRTDAQProducerLabel(config().CRTDAQLabel())
-    , fCrtutils(new CRTCommonUtils())
-  {
-    // Get a pointer to the geometry service provider.
-    fGeometryService = lar::providerFrom<geo::Geometry>();
-    // The same for detector TDC clock services.
-    // Access to detector properties.
-    auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
-    fTriggerOffset = trigger_offset(clockData);
+	CRTCalibrationAnalysis::CRTCalibrationAnalysis(Parameters const& config)
+    	: EDAnalyzer(config)
+    	, fCRTDAQProducerLabel(config().CRTDAQLabel())
+    	, fCrtutils(new CRTCommonUtils())
+ 	{
+    		// Get a pointer to the geometry service provider.
+    		fGeometryService = lar::providerFrom<geo::Geometry>();
+    		
+		// The same for detector TDC clock services.
+    		// Access to detector properties.
+    		auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
+    		fTriggerOffset = trigger_offset(clockData);
 
-    for(int feb=1; feb<232; feb++){
+    		for(int feb=1; feb<232; feb++){
       
  			string hname = "hadc_"+to_string(feb);
 			string htitle = "raw charge: mac5 "+to_string(feb);
 			string signame = hname + "_signal_sum";
 			string resname = hname + "_reset_sum";
-			pedSigHistos[feb] = tfs->make<TH1F>(signame.c_str(), htitle.c_str(), 131040, 0, 131040);
-			pedResHistos[feb] = tfs->make<TH1F>(resname.c_str(), htitle.c_str(), 131040, 0, 131040);
-      macToHistos[feb] = new vector<TH1F*>();
-			macToHistos_nonTriggeringPed[feb] = new vector<TH1F*>();
-      macToHistos_ped[feb] = new vector<TH1F*>();
-      macToHistos_sig[feb] = new vector<TH1F*>();
+			allChannels_adcSum_histograms[feb] = tfs->make<TH1F>(signame.c_str(), htitle.c_str(), 131040, 0, 131040);
+			allChannels_resetHits_adcSum_histograms[feb] = tfs->make<TH1F>(resname.c_str(), htitle.c_str(), 131040, 0, 131040);
+      			channelSpectrum_histograms[feb] = new vector<TH1F*>();
+			channelSpectrum_pedestal_noTrig_histograms[feb] = new vector<TH1F*>();
+      			channelSpectrum_pedestal_resetHits_histograms[feb] = new vector<TH1F*>();
+      			channelSpectrum_onlySignal_histograms[feb] = new vector<TH1F*>();
 
-      for(int ch=0; ch<32; ch++){
+      			for(int ch=0; ch<32; ch++){
 
 				string chname = hname + "_"+to_string(ch);
-  			string chtitle = htitle + ", ch. "+to_string(ch);
+  				string chtitle = htitle + ", ch. "+to_string(ch);
 				string ch_signame = chname + "_signal";
 				string ch_pedname = chname + "_pedestal";
 				string ch_pedname_nonTriggering = ch_pedname + "_non_triggering";
-				macToHistos[feb]->push_back(tfs->make<TH1F>(chname.c_str(),chtitle.c_str(),4100,0,4100));
-				macToHistos_nonTriggeringPed[feb]->push_back(tfs->make<TH1F>(ch_pedname_nonTriggering.c_str(),ch_pedname_nonTriggering.c_str(),4100,0,4100));
-				macToHistos_ped[feb]->push_back(tfs->make<TH1F>(ch_pedname.c_str(),ch_pedname.c_str(),4100,0,4100));
-				macToHistos_sig[feb]->push_back(tfs->make<TH1F>(ch_signame.c_str(),ch_signame.c_str(),4100,0,4100));
-//				if(feb > 100) brokenChannels.push_back(ChannelInfo(feb, ch, chname));
-      }
-    }
-    rnd = new TRandom();
-  }
+				channelSpectrum_histograms[feb]->push_back(tfs->make<TH1F>(chname.c_str(),chtitle.c_str(),4100,0,4100));
+				channelSpectrum_pedestal_noTrig_histograms[feb]->push_back(tfs->make<TH1F>(ch_pedname_nonTriggering.c_str(),ch_pedname_nonTriggering.c_str(),4100,0,4100));
+				channelSpectrum_pedestal_resetHits_histograms[feb]->push_back(tfs->make<TH1F>(ch_pedname.c_str(),ch_pedname.c_str(),4100,0,4100));
+				channelSpectrum_onlySignal_histograms[feb]->push_back(tfs->make<TH1F>(ch_signame.c_str(),ch_signame.c_str(),4100,0,4100));
+      			}
+    		}
+		
+		rnd = new TRandom();
+  	}
   
-  //-----------------------------------------------------------------------
-  void CRTCalibrationAnalysis::beginJob()
-  {
-  }
+//-----------------------------------------------------------------------
+  	void CRTCalibrationAnalysis::beginJob()
+  	{
+  	}
    
-  void CRTCalibrationAnalysis::beginRun(const art::Run& /*run*/)
-  {
-  }
+  	void CRTCalibrationAnalysis::beginRun(const art::Run& /*run*/)
+  	{
+  	}
   
-  void CRTCalibrationAnalysis::endRun(const art::Run& /*run*/)
-  {
-  }
+  	void CRTCalibrationAnalysis::endRun(const art::Run& /*run*/)
+  	{
+  	}
 
-   void CRTCalibrationAnalysis::endJob()
-  {
-  }
+  	void CRTCalibrationAnalysis::endJob()
+  	{
+  	}
 
-  //-----------------------------------------------------------------------
+//-----------------------------------------------------------------------
 
-	//Function to have an updated list of broken channels
-/*	void listOfBrokenChannels(art::Handle<vector<icarus::crt::CRTData>> crtDAQHandle, std::vector<ChannelInfo>& channelsList){
-	for(auto const& ch : channelsList) std::cout << "FEB: " << ch.feb << " CHANNEL: " << ch.channel << " IS IN THE LIST" << std::endl;
-	int found_channels = 0;
-    channelsList.erase(
-        std::remove_if(channelsList.begin(), channelsList.end(), [&crtDAQHandle, &found_channels](const ChannelInfo& ch) {
-	                for (const auto& febdat : *crtDAQHandle) {
-										if(febdat.fMac5 <100) continue;
-	                    if (febdat.fAdc[ch.channel] > 500) { //Does this logic make sense? NO
-	found_channels++;
-	                        return true;  
-	                    }
-	                 } 
-									 return false;  
-									}	), channelsList.end());
-	std::cout << "I'M IN THE FUNCTION" << std::endl;
-    for(auto const& ch : channelsList) std::cout << "FEB: " << ch.feb << " CHANNEL: " << ch.channel << " IS BROKEN!" << std::endl;
-	}
-*/
-
-  // Function we need and we don't know where to put
-  ULong64_t getTimeOfReset(art::Handle<vector<icarus::crt::CRTData>> crtDAQHandle, uint flag_value) {
-	  ULong64_t time = 0;
-    //int current_feb = 0;
-    for ( auto const& febdat : (*crtDAQHandle) ) {
-      if (febdat.fFlags == flag_value) {
-       // if (current_feb == febdat.fMac5) {
-       //   continue;
-       // }
-        std::cout << "Found a reset hit on feb " << +febdat.fMac5  
-                  << " at the time " << febdat.fTs0  << std::endl;
-	      time = febdat.fTs0;
-
-	// current_feb = febdat.fMac5;
-        break;
-      }
-    }
-	return time;
-  }
+	ULong64_t getTimeOfReset(art::Handle<vector<icarus::crt::CRTData>> crtDAQHandle, uint flag_value) {
+		ULong64_t time = 0;
+    		for ( auto const& febdat : (*crtDAQHandle) ) {
+      			if (febdat.fFlags == flag_value) {
+        			std::cout << "Found a reset hit on feb " << +febdat.fMac5  
+                  			<< " at the time " << febdat.fTs0  << std::endl;
+	      			time = febdat.fTs0;
+        			break;
+      			}
+    		}
+		return time;
+  	}
 
 vector<icarus::crt::CRTData> fixFlags(vector<icarus::crt::CRTData> crtDAQHandle, uint flag_value, ULong64_t time) {
 	vector<icarus::crt::CRTData> new_data;
@@ -273,9 +240,6 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
     art::Handle<vector<icarus::crt::CRTData>> crtDAQHandle;
     bool isCRTDAQ = event.getByLabel(fCRTDAQProducerLabel, crtDAQHandle);
 
-		//I check the state of the channels to make a list of broken ones		
-		//listOfBrokenChannels(crtDAQHandle, brokenChannels);
-
 		//For all the febs with mac5 lower than 100 I don't make any difference
     if (isCRTDAQ)  {
       MF_LOG_DEBUG("CRTCalibrationAnalysis") << "about to loop over CRTDAQ entries" << '\n';
@@ -285,13 +249,13 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
 					adc_sum=0;
 					for(int ch=0; ch<32; ch++) {
 						adc_sum+=febdat.fAdc[ch];
-  	    	  macToHistos[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
-  	    	  macToHistos_nonTriggeringPed[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
-  	    	  macToHistos_ped[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
-  	    	  macToHistos_sig[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
+  	    	  channelSpectrum_histograms[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
+  	    	  channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
+  	    	  channelSpectrum_pedestal_resetHits_histograms[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
+  	    	  channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
         	}
-					pedSigHistos[febdat.fMac5]->Fill(adc_sum);
-					pedResHistos[febdat.fMac5]->Fill(adc_sum);
+					allChannels_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
+					allChannels_resetHits_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
       	}	
     	}
 
@@ -322,13 +286,13 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
           	}
 
 	        	auto max = std::max_element(top_layer.begin(), top_layer.end());
-	    			macToHistos[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    			if(max->first > 275) macToHistos_sig[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	    			channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+	    			if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
 	    			top_layer.erase(max);
 
 		    		max = std::max_element(top_layer.begin(), top_layer.end());
-		    		macToHistos[febdat.fMac5]->at(max->second)->Fill( max->first );
-		    		if(max->first > 275) macToHistos_sig[febdat.fMac5]->at(max->second)->Fill( max->first );	
+		    		channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+		    		if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
 	          top_layer.erase(max);
 					
           	std::map<int, int> bot_layer;
@@ -339,13 +303,13 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
           	}
 
 	    			max = std::max_element(bot_layer.begin(), bot_layer.end());
-	    			macToHistos[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    			if(max->first > 275) macToHistos_sig[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	    			channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+	    			if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
 	    			bot_layer.erase(max);
 
 	    			max = std::max_element(bot_layer.begin(), bot_layer.end());
-	    			macToHistos[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    			if(max->first > 275) macToHistos_sig[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	    			channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+	    			if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
 						bot_layer.erase(max);
 
 
@@ -369,10 +333,10 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
 						bot_layer.erase(max);
 
   					for (auto it = top_layer.begin(); it != top_layer.end(); ++it) {
-    					macToHistos_nonTriggeringPed[febdat.fMac5]->at(it->second)->Fill(it->first);
+    					channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
   					}
   					for (auto it = bot_layer.begin(); it != bot_layer.end(); ++it) {
-    					macToHistos_nonTriggeringPed[febdat.fMac5]->at(it->second)->Fill(it->first);
+    					channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
   					}
 
 
@@ -380,16 +344,16 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
 /*					
   					int counter = 0;
   					for (auto it = top_layer.begin(); it != top_layer.end() && counter < pedChannels; ++it, ++counter) {
-    					macToHistos_nonTriggeringPed[febdat.fMac5]->at(it->second)->Fill(it->first);
+    					channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
   					}
   
   					counter = 0; // Resetting counter for the bottom layer
   					for (auto it = bot_layer.begin(); it != bot_layer.end() && counter < pedChannels; ++it, ++counter) {
-    				macToHistos_nonTriggeringPed[febdat.fMac5]->at(it->second)->Fill(it->first);
+    				channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
   }
 */
 				
-						pedSigHistos[febdat.fMac5]->Fill(adc_sum);
+						allChannels_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
 
         }//SIGNAL HIT
 
@@ -403,12 +367,12 @@ vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> 
 	      	}
 
           for(int ch=0; ch<32; ch++) {
-  	        macToHistos[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);
-	    			macToHistos_ped[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);	
+  	        channelSpectrum_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);
+	    			channelSpectrum_pedestal_resetHits_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);	
 						adc_sum+=febdat.fAdc[ch];
            }
 					
-					pedResHistos[febdat.fMac5]->Fill(adc_sum);
+					allChannels_resetHits_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
           current_feb = febdat.fMac5;
         }//RESET HIT
 
