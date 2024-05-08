@@ -286,17 +286,7 @@ namespace crt {
 
 
 					//Instead of erasing here you tryed with a counter on the number of channels for the pedestal = last 10
-/*					
-  					int counter = 0;
-  					for (auto it = top_layer.begin(); it != top_layer.end() && counter < pedChannels; ++it, ++counter) {
-    					channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
-  					}
-  
-  					counter = 0; // Resetting counter for the bottom layer
-  					for (auto it = bot_layer.begin(); it != bot_layer.end() && counter < pedChannels; ++it, ++counter) {
-    				channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
-  }
-*/
+
 				
 						allChannels_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
 
