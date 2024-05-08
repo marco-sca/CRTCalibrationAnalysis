@@ -253,7 +253,7 @@ enabling the creation of histograms with an higher number of entries.
 
 
 ## 2.1.4 LArSoft and icaruscode
-LArSoft [[5](#ref5)] is a toolkit that provides a software infrastructure and algorithms for the simulation, reconstruction and analysis of events in LArTPCs. The toolkit, coded in C++, is based on the *art* event processing framework. This framework coordinates event processing via configurable, pluggable modules that add data to, and drop data from events. The code `CRTCalibrationAnalysis_module.cc` is plugged in the personal `icaruscode` build, and as such is written 
+LArSoft [[5](#ref5)] is a toolkit that provides a software infrastructure and algorithms for the simulation, reconstruction and analysis of events in LArTPCs. The toolkit, coded in C++, is based on the *art* event processing framework. This framework coordinates event processing via configurable, pluggable modules that add data to, and drop data from events. The code `CRTCalibrationAnalysis_module.cc` is plugged in the personal `icaruscode` build, and because of this is written in the *art* framework. A Wiki for the ICARUS simulation and reconstruction software can be found [here](https://sbnsoftware.github.io/icaruscode_wiki/Wiki).
 
 </details>
 
