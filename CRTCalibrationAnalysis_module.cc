@@ -216,7 +216,7 @@ namespace crt {
       				}	
     			}
 			
-     			int c = 0; 
+     			int resetHits_counter = 0; 
      			int current_feb = 0;
 			
      			for ( auto const& febdat : (*crtDAQHandle)/*new_data*/ ) {
@@ -283,46 +283,41 @@ namespace crt {
   						for (auto it = bot_layer.begin(); it != bot_layer.end(); ++it) {
     							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
   						}
-
-
-					//Instead of erasing here you tryed with a counter on the number of channels for the pedestal = last 10
-
 				
 						allChannels_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
 
-        }//SIGNAL HIT
+        				}//SIGNAL HIT
 
 
-  	    if (febdat.fFlags == 9 || febdat.fFlags == 7) {
-		      c++;
-	  //The first time it enters in the if() this isn't true, but if for the next hit the condition is true, then you have two or more hits flagged as reset in the same event. 
-          if (current_feb == febdat.fMac5) {
-						continue;
-	      	}
+  	    				if (febdat.fFlags == 9 || febdat.fFlags == 7) {
+		      				resetHits_counter++;
+	  					//The first time it enters in the if() this isn't true, but if for the next hit the condition is true, then you have two or more hits flagged as reset in the same event. 
+          					if (current_feb == febdat.fMac5) {
+							continue;
+	      					}
 
-          for(int ch=0; ch<32; ch++) {
-  	        channelSpectrum_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);
-	    			channelSpectrum_pedestal_resetHits_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);	
-						adc_sum+=febdat.fAdc[ch];
-           }
+          					for(int ch=0; ch<32; ch++) {
+  	        					channelSpectrum_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);
+	    						channelSpectrum_pedestal_resetHits_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);	
+							adc_sum+=febdat.fAdc[ch];
+          			 		}
 					
-					allChannels_resetHits_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
-          current_feb = febdat.fMac5;
-        }//RESET HIT
+						allChannels_resetHits_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
+          					current_feb = febdat.fMac5;
+        				}//RESET HIT
 
-      }
-    }
+      				}
+    			}
+			
+    			std::cout << "HERE IS THE NUMBER OF RESET HITS: " << resetHits_counter << std::endl;
+  		}//if crtdetsim products present
 
-		
-    std::cout << "HERE IS THE NUMBER OF RESET HITS: " << c << std::endl;
-  }//if crtdetsim products present
-
-    else 
-      mf::LogError("CRTCalibrationAnalysis") << "CRTDAQ products not found!" << std::endl;
+    		else 
+      			mf::LogError("CRTCalibrationAnalysis") << "CRTDAQ products not found!" << std::endl;
     
-  } // CRTCalibrationAnalysis::analyze()
+  	} // CRTCalibrationAnalysis::analyze()
   
-  DEFINE_ART_MODULE(CRTCalibrationAnalysis)
+  	DEFINE_ART_MODULE(CRTCalibrationAnalysis)
 } // namespace crt
 } // namespace icarus
 
