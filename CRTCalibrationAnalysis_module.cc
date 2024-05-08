@@ -188,47 +188,7 @@ namespace crt {
   	void CRTCalibrationAnalysis::endJob()
   	{
   	}
-
-//-----------------------------------------------------------------------
-
-	ULong64_t getTimeOfReset(art::Handle<vector<icarus::crt::CRTData>> crtDAQHandle, uint flag_value) {
-		ULong64_t time = 0;
-    		for ( auto const& febdat : (*crtDAQHandle) ) {
-      			if (febdat.fFlags == flag_value) {
-        			std::cout << "Found a reset hit on feb " << +febdat.fMac5  
-                  			<< " at the time " << febdat.fTs0  << std::endl;
-	      			time = febdat.fTs0;
-        			break;
-      			}
-    		}
-		return time;
-  	}
-
-	vector<icarus::crt::CRTData> fixFlags(vector<icarus::crt::CRTData> crtDAQHandle, uint flag_value, ULong64_t time) {
-		vector<icarus::crt::CRTData> new_data;
-  		for ( auto& febdat : crtDAQHandle ) {
-    			if (febdat.fMac5 > 100) {
-      				new_data.push_back(febdat);
-      				if (new_data.back().fFlags == 3) {
-        				Long64_t diff = abs((Long64_t)new_data.back().fTs0 - (Long64_t)time);
-        				if (diff < 100) {
-          					new_data.back().fFlags = flag_value;
-        				}
-      				}
-    			}
-  		}
-  		return new_data;
-	}
-
-	vector<icarus::crt::CRTData> fixFlags(art::Handle<vector<icarus::crt::CRTData>> crtDAQHandle, uint flag_value, ULong64_t time) {
-		vector<icarus::crt::CRTData> new_data;
-  		for ( auto& febdat : (*crtDAQHandle) ) {
-    			new_data.push_back(febdat);
-  		}
-  		return fixFlags(new_data, flag_value, time);
-	}
-
-//-----------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------
   	void CRTCalibrationAnalysis::analyze(const art::Event& event) 
   	{
     		MF_LOG_DEBUG("CRTCalibrationAnalysis") << "beginning analyis" << '\n';
@@ -255,19 +215,7 @@ namespace crt {
 					allChannels_resetHits_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
       				}	
     			}
-
-/*
-     			// Search of first resert hit and storing of its time
-     			ULong64_t time9 = getTimeOfReset(crtDAQHandle, 9);
-     			ULong64_t time7 = getTimeOfReset(crtDAQHandle, 7);
-
-     			// Fixing of unflagged reset hits
-     			vector<icarus::crt::CRTData> new_data = fixFlags(crtDAQHandle, 9, time9);
-                        new_data = fixFlags(new_data,     7, time7);
-     
-*/
 			
-			// Actual stuff with hits of the TopCRT (you'll later have to uncomment the fix on the hit)
      int c = 0; 
      int current_feb = 0;
 //		 int pedChannels = 10;//Lower values per layer in the non-triggering channel logic for the pedestal
@@ -359,7 +307,6 @@ namespace crt {
   	    if (febdat.fFlags == 9 || febdat.fFlags == 7) {
 		      c++;
 	  //The first time it enters in the if() this isn't true, but if for the next hit the condition is true, then you have two or more hits flagged as reset in the same event. 
-	  // Do you want to keep this check???
           if (current_feb == febdat.fMac5) {
 						continue;
 	      	}
