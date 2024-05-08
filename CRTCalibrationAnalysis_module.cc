@@ -216,74 +216,73 @@ namespace crt {
       				}	
     			}
 			
-     int c = 0; 
-     int current_feb = 0;
-//		 int pedChannels = 10;//Lower values per layer in the non-triggering channel logic for the pedestal
-     for ( auto const& febdat : (*crtDAQHandle)/*new_data*/ ) {
-        if (febdat.fMac5 > 100) {
+     			int c = 0; 
+     			int current_feb = 0;
+			
+     			for ( auto const& febdat : (*crtDAQHandle)/*new_data*/ ) {
+        			if (febdat.fMac5 > 100) {
 					adc_sum=0;
-	
-	      	if (febdat.fFlags == 3) {
-          	std::map<int, int> top_layer;
-
-          	for (int ch = 0; ch < 16; ch++) {
-  						top_layer[febdat.fAdc[ch]] = ch; //adc, ch with ch=[0,15]
+	      				if (febdat.fFlags == 3) {
+          					std::map<int, int> top_layer;
+						for (int ch = 0; ch < 16; ch++) {
+  							top_layer[febdat.fAdc[ch]] = ch; //adc, ch with ch=[0,15]
 							adc_sum+=febdat.fAdc[ch];
-          	}
+          					}
 
-	        	auto max = std::max_element(top_layer.begin(), top_layer.end());
-	    			channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    			if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
-	    			top_layer.erase(max);
+	        				auto max = std::max_element(top_layer.begin(), top_layer.end());
+	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	    					top_layer.erase(max);
 
-		    		max = std::max_element(top_layer.begin(), top_layer.end());
-		    		channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-		    		if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
-	          top_layer.erase(max);
+		    				max = std::max_element(top_layer.begin(), top_layer.end());
+		    				channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+		    				if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	          				top_layer.erase(max);
 					
-          	std::map<int, int> bot_layer;
+          					std::map<int, int> bot_layer;
 
-	    	  	for (int ch = 16; ch < 32; ch++) {
-  						bot_layer[febdat.fAdc[ch]] = ch;
+	    	  				for (int ch = 16; ch < 32; ch++) {
+  							bot_layer[febdat.fAdc[ch]] = ch;
 							adc_sum+=febdat.fAdc[ch];
-          	}
+          					}
 
-	    			max = std::max_element(bot_layer.begin(), bot_layer.end());
-	    			channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    			if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
-	    			bot_layer.erase(max);
+	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
+	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	    					bot_layer.erase(max);
 
-	    			max = std::max_element(bot_layer.begin(), bot_layer.end());
-	    			channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    			if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
+	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
+	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
 						bot_layer.erase(max);
 
 
-					//In total I skip the higher 6 values per layer 4+2 erased
+						//In total I skip the higher 6 values per layer 4+2 erased
 						max = std::max_element(top_layer.begin(), top_layer.end());
-	    			top_layer.erase(max);
+	    					top_layer.erase(max);
 						max = std::max_element(top_layer.begin(), top_layer.end());
-	    			top_layer.erase(max);
+	    					top_layer.erase(max);
 						max = std::max_element(top_layer.begin(), top_layer.end());
-	    			top_layer.erase(max);
+	    					top_layer.erase(max);
 						max = std::max_element(top_layer.begin(), top_layer.end());
-	    			top_layer.erase(max);
+	    					top_layer.erase(max);
 
-	    			max = std::max_element(bot_layer.begin(), bot_layer.end());	
+	    					max = std::max_element(bot_layer.begin(), bot_layer.end());	
 						bot_layer.erase(max);
-	    			max = std::max_element(bot_layer.begin(), bot_layer.end());
+	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
 						bot_layer.erase(max);
-	    			max = std::max_element(bot_layer.begin(), bot_layer.end());
+	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
 						bot_layer.erase(max);
-	    			max = std::max_element(bot_layer.begin(), bot_layer.end());	
+	    					max = std::max_element(bot_layer.begin(), bot_layer.end());	
 						bot_layer.erase(max);
 
-  					for (auto it = top_layer.begin(); it != top_layer.end(); ++it) {
-    					channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
-  					}
-  					for (auto it = bot_layer.begin(); it != bot_layer.end(); ++it) {
-    					channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
-  					}
+  						for (auto it = top_layer.begin(); it != top_layer.end(); ++it) {
+    							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
+  						}
+						
+  						for (auto it = bot_layer.begin(); it != bot_layer.end(); ++it) {
+    							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
+  						}
 
 
 					//Instead of erasing here you tryed with a counter on the number of channels for the pedestal = last 10
