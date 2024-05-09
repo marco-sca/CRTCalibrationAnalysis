@@ -98,71 +98,84 @@ namespace crt {
     		using Parameters = art::EDAnalyzer::Table<Config>;
     
   
-    		// Constructor: configures the module (see the Config structure above)
+    		// Constructor: Initializes the CRTCalibrationAnalysis module using configuration parameters
     		explicit CRTCalibrationAnalysis(Parameters const& config);
 
+		// Called once at the start of the job; use to initialize resources
     		virtual void beginJob() override;
+
+		// Called at the beginning of each run, use for run-specific initialization
     		virtual void beginRun(const art::Run& run) override;
+
+		// Processes each event, main analysis logic is implemented here
     		virtual void analyze (const art::Event& event) override;
+
+		// Called once at the end of the job, use for cleanup and finalizing results
     		void endJob() override;
+
+		// Called at the end of each run, use for run-specific cleanup
     		void endRun(const art::Run&) override;
 
   	private:
-
+		// Handle to ROOT file service
     		art::ServiceHandle<art::TFileService> tfs;
 
-		map<uint8_t, TH1F*> allChannels_adcSum_histograms;
-		map<uint8_t, TH1F*> allChannels_resetHits_adcSum_histograms;
-    		map<uint8_t,vector<TH1F*>*> channelSpectrum_histograms;
-		map<uint8_t,vector<TH1F*>*> channelSpectrum_pedestal_noTrig_histograms;
-    		map<uint8_t,vector<TH1F*>*> channelSpectrum_pedestal_resetHits_histograms;
-    		map<uint8_t,vector<TH1F*>*> channelSpectrum_onlySignal_histograms;
+		map<uint8_t, TH1F*> allChannels_adcSum_histograms; // Histograms containing ADC sums over all channels, the map key is the FEB number
+		map<uint8_t, TH1F*> allChannels_resetHits_adcSum_histograms; // Histograms for reset hits ADC sums, per FEB number
+    		map<uint8_t,vector<TH1F*>*> channelSpectrum_histograms; // Channels' spectra histograms, the map key is the FEB number
+		map<uint8_t,vector<TH1F*>*> channelSpectrum_pedestal_noTrig_histograms; // Channels' pedestal histograms, filled with the ADC counts of the channels that did not trigger the event
+    		map<uint8_t,vector<TH1F*>*> channelSpectrum_pedestal_resetHits_histograms; // Channels' pedestal histograms, filled with the ADC counts of that channels when a 'reset hit' is found
+    		map<uint8_t,vector<TH1F*>*> channelSpectrum_onlySignal_histograms; // Signal-only histograms
     		TRandom* rnd;
 
-    		// The parameters we'll read from the .fcl file.
+    		// // Label for CRT data product, with the parameters we'll read from the .fcl file.
     		art::InputTag fCRTDAQProducerLabel;
 
     		// Other variables that will be shared between different methods.
-    		geo::GeometryCore const* fGeometryService;   ///< pointer to Geometry provider
-    		int                      fTriggerOffset;     ///< (units of ticks) time of expected neutrino event
-    		CRTCommonUtils* fCrtutils;  
+    		geo::GeometryCore const* fGeometryService;   // Pointer to Geometry provider
+    		int                      fTriggerOffset;     // Trigger offset in units of ticks (time of expected neutrino event)
+    		CRTCommonUtils* fCrtutils;  // CRT utilities
   	}; // class CRTCalibrationAnalysis
 
 //-----------------------------------------------------------------------
-   
+   	// The actual constructor implementation
 	CRTCalibrationAnalysis::CRTCalibrationAnalysis(Parameters const& config)
     	: EDAnalyzer(config)
     	, fCRTDAQProducerLabel(config().CRTDAQLabel())
     	, fCrtutils(new CRTCommonUtils())
  	{
-    		// Get a pointer to the geometry service provider.
+    		// Obtain a pointer to the geometry service, which provides access to detector geometry
     		fGeometryService = lar::providerFrom<geo::Geometry>();
     		
-		// The same for detector TDC clock services.
-    		// Access to detector properties.
+		// Obtain detector-specific time information from the DetectorClocksService
     		auto const clockData = art::ServiceHandle<detinfo::DetectorClocksService const>()->DataForJob();
     		fTriggerOffset = trigger_offset(clockData);
 
     		for(int feb=1; feb<232; feb++){
-      
+      			// For each FEB generate the histograms names
  			string hname = "hadc_"+to_string(feb);
 			string htitle = "raw charge: mac5 "+to_string(feb);
 			string signame = hname + "_signal_sum";
 			string resname = hname + "_reset_sum";
+
+			// Create the histograms 
 			allChannels_adcSum_histograms[feb] = tfs->make<TH1F>(signame.c_str(), htitle.c_str(), 131040, 0, 131040);
 			allChannels_resetHits_adcSum_histograms[feb] = tfs->make<TH1F>(resname.c_str(), htitle.c_str(), 131040, 0, 131040);
-      			channelSpectrum_histograms[feb] = new vector<TH1F*>();
+      			channelSpectrum_histograms[feb] = new vector<TH1F*>(); // The vector will contain the 32 histograms, one per channel
 			channelSpectrum_pedestal_noTrig_histograms[feb] = new vector<TH1F*>();
       			channelSpectrum_pedestal_resetHits_histograms[feb] = new vector<TH1F*>();
       			channelSpectrum_onlySignal_histograms[feb] = new vector<TH1F*>();
 
       			for(int ch=0; ch<32; ch++){
-
+				// Append the channel number in the histograms names
 				string chname = hname + "_"+to_string(ch);
   				string chtitle = htitle + ", ch. "+to_string(ch);
+				// Append the histogram type: signal or pedestal (noise)
 				string ch_signame = chname + "_signal";
-				string ch_pedname = chname + "_pedestal";
-				string ch_pedname_nonTriggering = ch_pedname + "_non_triggering";
+				string ch_pedname = chname + "_pedestal"; // The default 'pedestal' histograms will contain the spectrum obtained by the reset hits
+				string ch_pedname_nonTriggering = ch_pedname + "_non_triggering"; // The 'pedestal' histograms obtained with a non-triggering channels logic have a specific name
+
+				// Allocate histograms for each Front-End Board (FEB) and each channel
 				channelSpectrum_histograms[feb]->push_back(tfs->make<TH1F>(chname.c_str(),chtitle.c_str(),4100,0,4100));
 				channelSpectrum_pedestal_noTrig_histograms[feb]->push_back(tfs->make<TH1F>(ch_pedname_nonTriggering.c_str(),ch_pedname_nonTriggering.c_str(),4100,0,4100));
 				channelSpectrum_pedestal_resetHits_histograms[feb]->push_back(tfs->make<TH1F>(ch_pedname.c_str(),ch_pedname.c_str(),4100,0,4100));
@@ -174,6 +187,7 @@ namespace crt {
   	}
   
 //-----------------------------------------------------------------------
+    	// Begin job lifecycle methods to setup analysis
   	void CRTCalibrationAnalysis::beginJob()
   	{
   	}
@@ -181,7 +195,8 @@ namespace crt {
   	void CRTCalibrationAnalysis::beginRun(const art::Run& /*run*/)
   	{
   	}
-  
+
+  	// Handle end of run and job cleanup
   	void CRTCalibrationAnalysis::endRun(const art::Run& /*run*/)
   	{
   	}
@@ -190,6 +205,7 @@ namespace crt {
   	{
   	}
 //------------------------------------------------------------------------------------------------------
+	// 'analyze' method processes each event, filling histograms and performing analysis
   	void CRTCalibrationAnalysis::analyze(const art::Event& event) 
   	{
     		MF_LOG_DEBUG("CRTCalibrationAnalysis") << "beginning analyis" << '\n';
@@ -197,12 +213,13 @@ namespace crt {
 		art::Handle<vector<icarus::crt::CRTData>> crtDAQHandle;
     		bool isCRTDAQ = event.getByLabel(fCRTDAQProducerLabel, crtDAQHandle);
 
-		//For all the febs with mac5 lower than 100 I don't make any difference
+		// Proceed if CRT data is found in the event
     		if (isCRTDAQ)  {
       			MF_LOG_DEBUG("CRTCalibrationAnalysis") << "about to loop over CRTDAQ entries" << '\n';
     			int adc_sum;
 			
 			for ( auto const& febdat : (*crtDAQHandle) ) {
+				//For all the febs with mac5 lower than 100 (Side CRT) I don't make any difference and only fill them with the ADC counts measured per channel
       				if (febdat.fMac5 < 100) {
 					adc_sum=0;
 					for(int ch=0; ch<32; ch++) {
