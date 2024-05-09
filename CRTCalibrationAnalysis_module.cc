@@ -217,11 +217,12 @@ namespace crt {
     		if (isCRTDAQ)  {
       			MF_LOG_DEBUG("CRTCalibrationAnalysis") << "about to loop over CRTDAQ entries" << '\n';
     			int adc_sum;
-			
+
+			// Loop through each CRT data entry for FEBs with mac5 < 108 (side CRT)
 			for ( auto const& febdat : (*crtDAQHandle) ) {
-				//For all the febs with mac5 lower than 100 (Side CRT) I don't make any difference and only fill them with the ADC counts measured per channel
-      				if (febdat.fMac5 < 100) {
-					adc_sum=0;
+				//For all the febs with mac5 lower than 108 (Side CRT) I don't make any difference and only fill them with the ADC counts measured per channel
+      				if (febdat.fMac5 < 108) {
+					adc_sum=0; // Reset ADC sum for the new FEB data
 					for(int ch=0; ch<32; ch++) {
 						adc_sum+=febdat.fAdc[ch];
   	    	  				channelSpectrum_histograms[febdat.fMac5]->at(ch)->Fill( febdat.fAdc[ch] );
@@ -233,37 +234,47 @@ namespace crt {
 					allChannels_resetHits_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
       				}	
     			}
-			
+
+			// Counter for the number of reset hits (signal) found in an event, as sometimes we have more than one
      			int resetHits_counter = 0; 
      			int current_feb = 0;
-			
-     			for ( auto const& febdat : (*crtDAQHandle)/*new_data*/ ) {
-        			if (febdat.fMac5 > 100) {
-					adc_sum=0;
+
+			// Processing events at the Top CRT (with a FEB MAC5 ID greater than 107)
+     			for ( auto const& febdat : (*crtDAQHandle)) {
+        			if (febdat.fMac5 > 107) {
+					adc_sum=0; // Reset ADC sum for the new FEB data
+					// Check if the data corresponds to a signal hit based on flag value
 	      				if (febdat.fFlags == 3) {
-          					std::map<int, int> top_layer;
+          					std::map<int, int> top_layer; // Map to hold the module's top layer channel data: ADC values and their corresponding channels
+						
+						// Populate the map for the top layer channels (0-15)
 						for (int ch = 0; ch < 16; ch++) {
-  							top_layer[febdat.fAdc[ch]] = ch; //adc, ch with ch=[0,15]
-							adc_sum+=febdat.fAdc[ch];
+  							top_layer[febdat.fAdc[ch]] = ch; // Map ADC value to channel number
+							adc_sum+=febdat.fAdc[ch]; // Map ADC value to channel number
           					}
 
+						// Find and fill histograms with the first maximum ADC value from the top layer
 	        				auto max = std::max_element(top_layer.begin(), top_layer.end());
 	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
+	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first ); // Fill the channel's 'signal only' histogram for ADC counts values > 275  
 	    					top_layer.erase(max);
 
+						// Repeat for the second maximum ADC value
 		    				max = std::max_element(top_layer.begin(), top_layer.end());
 		    				channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
 		    				if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
 	          				top_layer.erase(max);
-					
+
+						// Similar processing for the bottom layer channels (16-31)
           					std::map<int, int> bot_layer;
 
+						// Populate the map for the bottom layer channels
 	    	  				for (int ch = 16; ch < 32; ch++) {
   							bot_layer[febdat.fAdc[ch]] = ch;
 							adc_sum+=febdat.fAdc[ch];
           					}
 
+						// Process the maximum values in the bottom layer similarly
 	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
 	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
 	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
@@ -275,7 +286,8 @@ namespace crt {
 						bot_layer.erase(max);
 
 
-						//In total I skip the higher 6 values per layer 4+2 erased
+						// In total I skip the higher 6 values per layer
+						// Top layer
 						max = std::max_element(top_layer.begin(), top_layer.end());
 	    					top_layer.erase(max);
 						max = std::max_element(top_layer.begin(), top_layer.end());
@@ -285,6 +297,7 @@ namespace crt {
 						max = std::max_element(top_layer.begin(), top_layer.end());
 	    					top_layer.erase(max);
 
+						// Bottom layer
 	    					max = std::max_element(bot_layer.begin(), bot_layer.end());	
 						bot_layer.erase(max);
 	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
@@ -294,45 +307,52 @@ namespace crt {
 	    					max = std::max_element(bot_layer.begin(), bot_layer.end());	
 						bot_layer.erase(max);
 
+						// The lower 10 ADC values populate the 'pedestal' histograms, in a 'non-triggering channels' logic 
+						// In the top layer
   						for (auto it = top_layer.begin(); it != top_layer.end(); ++it) {
     							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
   						}
-						
+
+						// Same for bottom layer
   						for (auto it = bot_layer.begin(); it != bot_layer.end(); ++it) {
     							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
   						}
-				
+
+						// Fill the histogram containing the sum of ADC count values of all the channels in this FEB
 						allChannels_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
 
         				}//SIGNAL HIT
 
-
+					// Handle reset hits identified by specific flags, to populate the pedestal
   	    				if (febdat.fFlags == 9 || febdat.fFlags == 7) {
-		      				resetHits_counter++;
-	  					//The first time it enters in the if() this isn't true, but if for the next hit the condition is true, then you have two or more hits flagged as reset in the same event. 
+		      				resetHits_counter++; // Increment counter for reset hits
+						
+	  					// Avoid duplicate processing of the same FEB within a single event, useful if there are more than one reset hit in this event 
           					if (current_feb == febdat.fMac5) {
 							continue;
 	      					}
 
+						// Process each channel for reset hits
           					for(int ch=0; ch<32; ch++) {
   	        					channelSpectrum_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);
-	    						channelSpectrum_pedestal_resetHits_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]);	
+	    						channelSpectrum_pedestal_resetHits_histograms[febdat.fMac5]->at(ch)->Fill(febdat.fAdc[ch]); // Fill the other 'pedestal' histogram, to compare the two logics	
 							adc_sum+=febdat.fAdc[ch];
           			 		}
 					
 						allChannels_resetHits_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
-          					current_feb = febdat.fMac5;
-        				}//RESET HIT
+          					current_feb = febdat.fMac5; // Update the current FEB to avoid re-processing
+                    			}//RESET HIT
+        			}
 
-      				}
-    			}
-			
+      			}
+
+			// Print the number of reset hits to check if and when more that one are found, in a specific event
     			std::cout << "HERE IS THE NUMBER OF RESET HITS: " << resetHits_counter << std::endl;
-  		}//if crtdetsim products present
-
-    		else 
+    		
+		}else{ 
       			mf::LogError("CRTCalibrationAnalysis") << "CRTDAQ products not found!" << std::endl;
-    
+		}//if crtdetsim products present
+		
   	} // CRTCalibrationAnalysis::analyze()
   
   	DEFINE_ART_MODULE(CRTCalibrationAnalysis)
