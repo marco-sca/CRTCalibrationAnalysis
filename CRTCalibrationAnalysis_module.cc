@@ -1,16 +1,18 @@
 /**
  * CRT Calibration Analysis Module
  * 
- * This file contains the CRT Calibration Analysis module to access CRT data and reco products.
+ * This file contains the CRT Calibration Analysis module to access CRT raw data and reco products.
+ * The module reads CRT data and processed outputs to perform calibration analysis and diagnostics.
  * 
- * Part of the initialization code, including includes and the definition of the class 
+ * It was originally authored by Chris Hilgenberg and has been updated and maintained to include more features.
+ * Specifically part of the initialization code, including includes and the definition of the class 
  * and methods, was implemented by Chris Hilgenberg (Chris.Hilgenberg@colostate.edu).
- * It was last revised in October 2018 with LArSoft v07_06_01.
+ * It was last revised in October 2018 with LArSoft v07_06_01. 
  * 
  * The implementation details and the bulk of the logic, were developed by me.
  */
 
-// LArSoft includes
+// LArSoft includes for handling CRT data and geometry within the LArSoft framework.
 #include "lardataobj/Simulation/AuxDetSimChannel.h"
 #include "lardataobj/RecoBase/Hit.h"
 #include "lardataobj/RecoBase/Cluster.h"
@@ -21,7 +23,7 @@
 #include "larcorealg/Geometry/AuxDetGeometryCore.h"
 #include "larcoreobj/SimpleTypesAndConstants/geo_types.h"
 
-// Framework includes
+// ART framework core classes, for dealing with event data and services
 #include "art/Framework/Core/EDAnalyzer.h"
 #include "art/Framework/Principal/Event.h"
 #include "art/Framework/Principal/Handle.h"
@@ -31,14 +33,14 @@
 #include "canvas/Persistency/Common/FindManyP.h"
 #include "canvas/Utilities/Exception.h"
 
-// Utility libraries
+// Utility libraries including message logging and parameter set handling
 #include "messagefacility/MessageLogger/MessageLogger.h"
 #include "fhiclcpp/ParameterSet.h"
 #include "fhiclcpp/types/Table.h"
 #include "fhiclcpp/types/Atom.h"
 #include "cetlib/pow.h" // cet::sum_of_squares()
 
-// ROOT includes
+// ROOT libraries used for histogramming and other data processing functions
 #include "TH1.h"
 #include "TH2.h"
 #include "TTree.h"
@@ -49,7 +51,7 @@
 #include "TROOT.h"
 #include "TRandom.h"
 
-// C++ includes
+// Standard C++ libraries
 #include <map>
 #include <vector>
 #include <string>
@@ -75,14 +77,13 @@ using std::to_string;
 //-----------------------------------------------------------------------
 namespace icarus {
 namespace crt {
-
+	// Declaration of the CRTCalibrationAnalysis class, inheriting from art::EDAnalyzer
 	class CRTCalibrationAnalysis : public art::EDAnalyzer
   	{
   	public:
-
+		// Config struct, to keep parameters from FHiCL files
     		struct Config {
       
-  				// Save some typing:
       			using Name = fhicl::Name;
       			using Comment = fhicl::Comment;
       
