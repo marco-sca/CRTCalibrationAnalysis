@@ -250,7 +250,7 @@ namespace crt {
 						// Populate the map for the top layer channels (0-15)
 						for (int ch = 0; ch < 16; ch++) {
   							top_layer[febdat.fAdc[ch]] = ch; // Map ADC value to channel number
-							adc_sum+=febdat.fAdc[ch]; // Map ADC value to channel number
+							adc_sum+=febdat.fAdc[ch]; // Sum all the ADC counts of all the top layer channels
           					}
 
 						// Find and fill histograms with the first maximum ADC value from the top layer
