@@ -245,78 +245,59 @@ namespace crt {
 					adc_sum=0; // Reset ADC sum for the new FEB data
 					// Check if the data corresponds to a signal hit based on flag value
 	      				if (febdat.fFlags == 3) {
-          					std::map<int, int> top_layer; // Map to hold the module's top layer channel data: ADC values and their corresponding channels
-						
-						// Populate the map for the top layer channels (0-15)
+						// Populate the multimap for the top layer channels (0-15)
+						std::multimap<int, int> top_layer; // Map to hold the module's top layer channel data: ADC values and their corresponding channels
+							
 						for (int ch = 0; ch < 16; ch++) {
-  							top_layer[febdat.fAdc[ch]] = ch; // Map ADC value to channel number
-							adc_sum+=febdat.fAdc[ch]; // Sum all the ADC counts of all the top layer channels
-          					}
+							top_layer.insert({febdat.fAdc[ch], ch}); // Map ADC value to channel number
+							adc_sum += febdat.fAdc[ch]; // Sum all the ADC counts of all the top layer channels
+						}
 
-						// Find and fill histograms with the first maximum ADC value from the top layer
-	        				auto max = std::max_element(top_layer.begin(), top_layer.end());
-	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first ); // Fill the channel's 'signal only' histogram for ADC counts values > 275  
-	    					top_layer.erase(max);
-
-						// Repeat for the second maximum ADC value
-		    				max = std::max_element(top_layer.begin(), top_layer.end());
-		    				channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-		    				if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
-	          				top_layer.erase(max);
+						// Iterate to fill signal historgrams with the two maximum ADC values, corresponding to the two triggered channels
+						auto reverse_it = top_layer.rbegin(); // Reverse iterator to start from the highest value
+						if (reverse_it != top_layer.rend()) {
+							channelSpectrum_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+							if (reverse_it->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+							++reverse_it;
+						}
+						
+						if (reverse_it != top_layer.rend()) {
+							channelSpectrum_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+							if (reverse_it->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+						}
 
 						// Similar processing for the bottom layer channels (16-31)
-          					std::map<int, int> bot_layer;
+          					std::multimap<int, int> bot_layer;
 
 						// Populate the map for the bottom layer channels
 	    	  				for (int ch = 16; ch < 32; ch++) {
-  							bot_layer[febdat.fAdc[ch]] = ch;
+  							bot_layer.insert({febdat.fAdc[ch], ch});
 							adc_sum+=febdat.fAdc[ch];
           					}
 
-						// Process the maximum values in the bottom layer similarly
-	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
-	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
-	    					bot_layer.erase(max);
-
-	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
-	    					channelSpectrum_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );
-	    					if(max->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(max->second)->Fill( max->first );	
-						bot_layer.erase(max);
-
-
-						// In total I skip the higher 6 values per layer
-						// Top layer
-						max = std::max_element(top_layer.begin(), top_layer.end());
-	    					top_layer.erase(max);
-						max = std::max_element(top_layer.begin(), top_layer.end());
-	    					top_layer.erase(max);
-						max = std::max_element(top_layer.begin(), top_layer.end());
-	    					top_layer.erase(max);
-						max = std::max_element(top_layer.begin(), top_layer.end());
-	    					top_layer.erase(max);
-
-						// Bottom layer
-	    					max = std::max_element(bot_layer.begin(), bot_layer.end());	
-						bot_layer.erase(max);
-	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
-						bot_layer.erase(max);
-	    					max = std::max_element(bot_layer.begin(), bot_layer.end());
-						bot_layer.erase(max);
-	    					max = std::max_element(bot_layer.begin(), bot_layer.end());	
-						bot_layer.erase(max);
+						reverse_it = bot_layer.rbegin();
+						if ( reverse_it != bot_layer.rend() ) {
+							channelSpectrum_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+							if(reverse_it->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+							++reverse_it;
+						}
+						if (reverse_it != bot_layer.rend()){
+							channelSpectrum_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+							if(reverse_it->first > 275) channelSpectrum_onlySignal_histograms[febdat.fMac5]->at(reverse_it->second)->Fill(reverse_it->first);
+						}
 
 						// The lower 10 ADC values populate the 'pedestal' histograms, in a 'non-triggering channels' logic 
 						// In the top layer
-  						for (auto it = top_layer.begin(); it != top_layer.end(); ++it) {
-    							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
-  						}
-
+						auto it = top_layer.begin();
+						for (int i = 0; i < 10 && it != top_layer.end(); ++it, ++i) {
+							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
+						}
+							
 						// Same for bottom layer
-  						for (auto it = bot_layer.begin(); it != bot_layer.end(); ++it) {
-    							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
-  						}
+						it = bot_layer.begin();
+						for (int i = 0; i < 10 && it != bot_layer.end(); ++it, ++i) {
+							channelSpectrum_pedestal_noTrig_histograms[febdat.fMac5]->at(it->second)->Fill(it->first);
+						}
 
 						// Fill the histogram containing the sum of ADC count values of all the channels in this FEB
 						allChannels_adcSum_histograms[febdat.fMac5]->Fill(adc_sum);
@@ -329,6 +310,7 @@ namespace crt {
 						
 	  					// Avoid duplicate processing of the same FEB within a single event, useful if there are more than one reset hit in this event 
           					if (current_feb == febdat.fMac5) {
+							std::cout << "Current feb with reset hit is the same as before" << std::endl;
 							continue;
 	      					}
 
