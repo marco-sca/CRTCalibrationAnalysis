@@ -200,7 +200,7 @@ void rebinAndSmooth(TH1I* histogram, int rebin, int smooth) {
  * If the fit meets the following criteria:
  * - Reduced chi-squared is below the requested value
  * - Mean falls within the range of the peak
- * - (Optional) Mean + sigma is below a certain threshold
+ * - Mean + sigma is below a certain threshold
  * add the mean and sigma to the "means" vector and exit the loop. Otherwise shrink the fit range and repeat the fit. 
  * If there are no more bins in the selected range or the fit was repeated more than "max_nr_of_fits" times the loop ends without 
  * finding a suitable fit. The current mean and sigma are then added to the "means" vector.
@@ -264,7 +264,7 @@ std::vector<std::pair<double, double>> getPeaksMean(TH1I* histogram,  std::vecto
 		if (red_chi2 < requested_red_chi2 &&
           		mean > xpeaks_sorted[npeak] - half_mean_distance &&
           		mean < xpeaks_sorted[npeak] + half_mean_distance && 
-          		/*mean + sigma < adc_last_pe*/) {
+          		mean + sigma < adc_last_pe) {
         			means.push_back(std::make_pair(mean, sigma));
         			fitted = true;
       		}
@@ -433,7 +433,7 @@ std::vector<int> rearrangeIndices(std::vector<std::pair<double, double>> means, 
 
 	for(int peak = 1; peak < means.size(); peak++) {
 		double leftPeakDistance = means[peak].first - means[peak - 1].first;
-                double rightPeakDistance = means[peak + 1].first - means[peak];
+                double rightPeakDistance = means[peak + 1].first - means[peak].first;
 		for(int tries = 1; tries <= rearrangement_tries; tries++) {
 			if (leftPeakDistance > (tries + INCREMENT_FACTOR) * rightPeakDistance){
 				for (int i = peak; i < means.size(); i++){
@@ -551,7 +551,6 @@ void saveCanvas(TH1I* histo, std::vector<std::pair<double, double>> means, std::
     	graph.Fit(lfit, "Q");
     	graph.Draw("LP same");
 	canvas->Update();  
-	canvas->setEditable(true);
   	canvas->SaveAs(png_name.c_str());
   	delete canvas;
 }
@@ -663,7 +662,7 @@ std::vector<std::pair<double, double>> pedestal(TFile *fInPed, TString inputDir)
 
       				if (means.size() == 0) {
 					// If no mean value is found, increase the chi-squared requirement
-        				chi2_red += increase_fit_chi2;
+        				chi2_red += chi2_fit_increase;
 					std::cout << "Pedestal fit didn't work for " << pedHisto_name << ": no mean value found. Trying again ..." << std::endl;
         				if (chi2_red > chi2_red_limit) {
 						// If the chi-squared limit is reached, consider it as failed and set the mean and sigma values to 0
@@ -936,8 +935,8 @@ void histosAnalysis(const char* fIn){
 
   	for (int i = 0; i < hits_vec.size(); i++) {
     		slope_histo->Fill(hits_vec[i].slope);
-    		slope_e_histo->Fill(hits_vec[i].slope_e);
-    		slope_vs_slope_e_histo->Fill(hits_vec[i].slope, hits_vec[i].slope_e);
+    		slope_e_histo->Fill(hits_vec[i].slope_error);
+    		slope_vs_slope_e_histo->Fill(hits_vec[i].slope, hits_vec[i].slope_error);
   	}
 	
 	TCanvas* canvas1 = new TCanvas("canvas1", "canvas1");
@@ -951,8 +950,8 @@ void histosAnalysis(const char* fIn){
 
   	for (int i = 0; i < hits_vec.size(); i++) {
     		pedestal_histo->Fill(hits_vec[i].pedestal);
-    		pedestal_e_histo->Fill(hits_vec[i].pedestal_e);
-    		pedestal_vs_pedestal_e_histo->Fill(hits_vec[i].pedestal, hits_vec[i].pedestal_e);
+    		pedestal_e_histo->Fill(hits_vec[i].pedestal_error);
+    		pedestal_vs_pedestal_e_histo->Fill(hits_vec[i].pedestal, hits_vec[i].pedestal_error);
   	}
 
   	TCanvas* c2 = new TCanvas("c2", "c2");
