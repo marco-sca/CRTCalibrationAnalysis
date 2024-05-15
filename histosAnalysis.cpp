@@ -766,7 +766,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 				}
 
 				// Extract the mean and sigma values from recursive gaussian fits of the p.e. peaks
-      				means = getPeaksMean(histoSignal, xpeaks_sorted, chi2_red, "hit"); 
+      				means = getPeaksMean(histoSignal, xpeaks_sorted, chi2_red, "sig"); 
 
 				// Initialize the vector containing the indices of the peaks (peak's number)
       				std::vector<int> index(means.size());
