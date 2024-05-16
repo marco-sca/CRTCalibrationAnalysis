@@ -696,7 +696,7 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
 		tstring_febNr = ((TObjString*)tokens->At(1))->GetString();
     		febNr = tstring_febNr.Atoi();
 		
-		//Select the FEBs to analyze
+		//Select the FEBs to analyze, as some FEBs do not work properly
 		if(febNr > 107 && febNr != 113 && febNr < 139 && febNr != 126){
     			std::cout << "Analysing the signal: " << sigHisto_name << std::endl;
 			std::stringstream namestream(sigHisto_name);
