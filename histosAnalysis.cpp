@@ -1,9 +1,3 @@
-//THIS MACRO DOES AN ANALYSIS ON THE HISTOGRAMS CONTAINED AT THE FOLLOWING PATH /pnfs/icarus/scratch/users/vpia/cal/run_9989/v09_77_00/ana/test_poms_cal/out/calibrationHistos/ THAT CONTAINS THE MERGED HISTOGRAMS OBTAINED AFTER STAGE0 OF OUR CAMPAIGN
-
-//You will then need to add to the code the custom hadd and the access to the list of broken channels, and so the gain dummy values for those channels
-//Change the png name so that takes into account the campaign from which is produced
-//Segmentation error possibly from loop on max peaks (make a check for this kind of error). Just check it for the seen histogram.
-
 // ROOT includes
 #include "TH1F.h"
 #include "TNtuple.h"
@@ -401,7 +395,6 @@ lFit linearFit(std::vector<std::pair<double, double>> means, std::vector<int> in
 	return fit_info;
 }
 
-//TO TEST AND SEE IF IT WORKS PROPERLY
 /**
  * The function aims at adjusting the peak indices that might have been detected incorrectly,
  * in an attempt to improve the quality of the linear fit results. Peaks can be missed during detection or have incorrect indices.
@@ -459,44 +452,7 @@ std::vector<int> rearrangeIndices(std::vector<std::pair<double, double>> means, 
 			}
 		}
 	}
-
-	/*	
-	std::vector<int> tmp_indices = indices;
-  	int tries = 1;
-  	while (tries < rearrangement_tries) {
-    		if (ceil(means[1].first - means[0].first) > (tries + 0.33) * (means[2].first - means[1].first)) {
-      			for (int peak_nr = 1; peak_nr < means.size(); peak_nr++) tmp_indices[peak_nr]++;
-    		}
-    		tries++;
-  	}
-  	indices = tmp_indices;
-
-  	int peak = 1;
-  	while (peak < means.size()) {
-    		tries = 1;
-    		bool skip_adjustment = false;
-    		while (tries < rearrangement_tries) {
-      			if (ceil(means[peak + 1].first - means[peak].first) >
-          			(tries + 0.33) * (means[peak].first - means[peak - 1].first)) {
-        				for (int peak_nr = peak + 1; peak_nr < means.size(); peak_nr++) tmp_indices[peak_nr]++;
-      			} else {
-        			skip_adjustment = true;
-        			break;
-      			}
-
-      			if (skip_adjustment == false) {
-        			lFit fit_rearranged = linearFit(means, tmp_indices);
-        			if (fit_rearranged.red_chi2 < fit.red_chi2) {
-         				fit = fit_rearranged;
-          				indices = tmp_indices;
-        			}
-        			tries++;
-      			}
-    		}
-    		peak++;
-  	}
-  	*/
-
+	
 	return indices;
 }
 
@@ -894,15 +850,9 @@ std::vector<gain> hits(TFile *fInSig, TFile *fInPed, TString inputDir){
  * The function starts by splitting the input histograms into signal and pedestal groups and storing them
  * in separate files. It then processes these histograms to extract gain information using the 'hits' function.
  * A series of plots are then represented, with the slope (gain) and pedestal distributions information.
- * Detailed log of operations is maintained throughout the process for debugging and verification purposes.
  * A .csv file with the main analysis information is generated, for further analysis.
  */
 void histosAnalysis(const char* fIn){
-	// Output the cout messages to a log file
-	std::ofstream out("cout_output.log");
-	std::streambuf *coutbuffer = std::cout.rdbuf();
-	std::cout.rdbuf(out.rdbuf());
-
 	//Divide the name of the file and path, passed as argument
 	TString inputFilePath(fIn);
 	TString inputDir = gSystem->DirName(inputFilePath);
@@ -915,28 +865,28 @@ void histosAnalysis(const char* fIn){
   	TFile *pedestalFile = new TFile(pedestalFileName, "RECREATE");
   	separateHistograms(fIn, signalFile, pedestalFile);
 
+	// Start the analysis and save the gain results in a vector of structs
 	std::vector<gain> hits_vec = hits(signalFile, pedestalFile, inputDir);
 
-
-	//Code to adjust
+	// Draw a series of plots, with the results of the analysis on the gain and its error, pedestal mean and sigma values 
   	TCanvas* c = new TCanvas("c", "c");
   	c->Divide(2, 2);
   	c->cd(1);
 
   	TH1D* slope_histo = new TH1D("slope", "slope", 400, 0, 400);
-  	TH1D* slope_e_histo = new TH1D("slope_e", "slope_e", 400, 0, 80);
-  	TH2D* slope_vs_slope_e_histo = new TH2D("Slope vs Slope_e", "Slope vs Slope_e", 400, 0, 400, 400, 0, 80);
+  	TH1D* slope_error_histo = new TH1D("slope_error", "slope_error", 400, 0, 80);
+  	TH2D* slope_vs_slope_error_histo = new TH2D("Slope vs Slope_error", "Slope vs Slope_error", 400, 0, 400, 400, 0, 80);
 
   	TH1D* pedestal_histo = new TH1D("pedestal", "pedestal", 400, 0, 400);
-  	TH1D* pedestal_e_histo = new TH1D("pedestal_e", "pedestal_e", 400, 0, 80);
-  	TH2D* pedestal_vs_pedestal_e_histo = new TH2D("pedestal vs pedestal_e", "pedestal vs pedestal_e", 400, 0, 400, 400, 0, 80);
+  	TH1D* pedestal_error_histo = new TH1D("pedestal_e", "pedestal_e", 400, 0, 80);
+  	TH2D* pedestal_vs_pedestal_error_histo = new TH2D("pedestal vs pedestal_error", "pedestal vs pedestal_error", 400, 0, 400, 400, 0, 80);
 
   	TH2D* slope_vs_pedestal_histo = new TH2D("Slope vs pedestal", "Slope vs pedestal", 400, 0, 400, 400, 0, 400);
 
   	for (int i = 0; i < hits_vec.size(); i++) {
     		slope_histo->Fill(hits_vec[i].slope);
-    		slope_e_histo->Fill(hits_vec[i].slope_error);
-    		slope_vs_slope_e_histo->Fill(hits_vec[i].slope, hits_vec[i].slope_error);
+    		slope_error_histo->Fill(hits_vec[i].slope_error);
+    		slope_vs_slope_error_histo->Fill(hits_vec[i].slope, hits_vec[i].slope_error);
   	}
 	
 	TCanvas* canvas1 = new TCanvas("canvas1", "canvas1");
@@ -944,14 +894,14 @@ void histosAnalysis(const char* fIn){
   	canvas1->cd(4);
   	slope_histo->Draw();
   	canvas1->cd(1);
-  	slope_e_histo->Draw();
+  	slope_error_histo->Draw();
   	canvas1->cd(2);
-  	slope_vs_slope_e_histo->Draw("colz");
+  	slope_vs_slope_error_histo->Draw("colz");
 
   	for (int i = 0; i < hits_vec.size(); i++) {
     		pedestal_histo->Fill(hits_vec[i].pedestal);
-    		pedestal_e_histo->Fill(hits_vec[i].pedestal_error);
-    		pedestal_vs_pedestal_e_histo->Fill(hits_vec[i].pedestal, hits_vec[i].pedestal_error);
+    		pedestal_error_histo->Fill(hits_vec[i].pedestal_error);
+    		pedestal_vs_pedestal_error_histo->Fill(hits_vec[i].pedestal, hits_vec[i].pedestal_error);
   	}
 
   	TCanvas* c2 = new TCanvas("c2", "c2");
@@ -959,19 +909,16 @@ void histosAnalysis(const char* fIn){
   	c2->cd(4);
   	pedestal_histo->Draw();
   	c2->cd(1);
-  	pedestal_e_histo->Draw();
+  	pedestal_error_histo->Draw();
   	c2->cd(2);
-  	pedestal_vs_pedestal_e_histo->Draw("colz");
+  	pedestal_vs_pedestal_error_histo->Draw("colz");
 
   	for (int i = 0; i < hits_vec.size(); i++) slope_vs_pedestal_histo->Fill(hits_vec[i].slope, hits_vec[i].pedestal);
   	TCanvas* c3 = new TCanvas("c3", "c3");
   	c3->cd(1);
   	slope_vs_pedestal_histo->Draw("colz");
 
-	// Close the cout to the log file 
-	std::cout.rdbuf(coutbuffer);
-	out.close();
-
+	
 	// Save the calibration information in a .csv file
   	std::ofstream outfile;
   	outfile.open("topCRT_calibration.csv");
